@@ -1,6 +1,6 @@
 -- YOUBOOK Supabase Database Schema
 
--- Enable necessary extensions
+-- -- Enable necessary extensions
 -- CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- -- Profiles table (extends auth.users)

@@ -11,6 +11,7 @@ class AppColors {
   static const Color textWhite = Color(0xFFFFFFFF);
   static const Color textBlack = Color(0xFF000000);
   static const Color textBlack54 = Color(0x8A000000);
+  static const Color black45 = Color.fromRGBO(0, 0, 0, 0.451);
   static const Color blue = Color.fromRGBO(33, 150, 243, 1);
 
   static const Color hintWhite = Color.fromARGB(179, 255, 255, 255);

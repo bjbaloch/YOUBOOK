@@ -90,7 +90,7 @@ class AuthProvider with ChangeNotifier {
 
   // Signup
   Future<bool> signup(String email, String password, String fullName,
-      {String? phoneNumber, String? avatarUrl, String? cnic}) async {
+      {String? phoneNumber, String? avatarUrl, String? cnic, String role = 'passenger', String? companyName, String? credentialDetails}) async {
     _isLoading = true;
     _error = null;
     Future.microtask(() => notifyListeners());
@@ -103,6 +103,9 @@ class AuthProvider with ChangeNotifier {
         phoneNumber: phoneNumber,
         avatarUrl: avatarUrl,
         cnic: cnic,
+        role: role,
+        companyName: companyName,
+        credentialDetails: credentialDetails,
       );
 
       if (user != null) {

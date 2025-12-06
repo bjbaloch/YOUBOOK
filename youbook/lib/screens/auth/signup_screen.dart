@@ -8,6 +8,7 @@ import '../../core/providers/auth_provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import 'login_screen.dart';
+import 'email_confirmation_screen.dart';
 
 // Simple debouncer for "while typing" checks
 class Debouncer {
@@ -251,27 +252,50 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Future<void> _handleSignup() async {
     FocusScope.of(context).unfocus();
+    print("=== SIGNUP DEBUG START ===");
+    print("DEBUG: Signup attempt for role: $_selectedRole");
 
     if (_selectedRole.isEmpty) {
+      print("DEBUG: Role not selected, showing snackbar");
       _showSnack('Please select an account type (Passenger or Manager)');
       return;
     }
+    print("DEBUG: Role validation passed");
 
-    if (!_formKey.currentState!.validate()) return;
-    if (!await _hasInternet()) {
+    if (!_formKey.currentState!.validate()) {
+      print("DEBUG: Form validation failed");
+      return;
+    }
+    print("DEBUG: Form validation passed");
+
+    final hasInternet = await _hasInternet();
+    if (!hasInternet) {
+      print("DEBUG: No internet connection");
       _showSnack('No internet connection');
       return;
     }
+    print("DEBUG: Internet connection available");
 
     setState(() => _isLoading = true);
+    print("DEBUG: Set loading state to true");
 
     try {
+      print("DEBUG: Checking field availability...");
       final ok = await _checkFieldAvailability();
-      if (!ok) return;
+      if (!ok) {
+        print("DEBUG: Field availability check failed");
+        return;
+      }
+      print("DEBUG: Field availability check passed");
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final fullName =
           '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}';
+
+      print("DEBUG: Calling authProvider.signup with:");
+      print("  - Email: ${_emailController.text.trim()}");
+      print("  - Full Name: $fullName");
+      print("  - Role: $_selectedRole");
 
       final success = await authProvider.signup(
         _emailController.text.trim(),
@@ -281,30 +305,50 @@ class _SignupScreenState extends State<SignupScreen> {
         cnic: _cnicController.text.trim().isNotEmpty
             ? _cnicController.text.trim()
             : null,
+        role: _selectedRole,
+        companyName: _selectedRole == AppConstants.roleManager
+            ? _companyNameController.text.trim()
+            : null,
+        credentialDetails: _selectedRole == AppConstants.roleManager
+            ? _credentialDetailsController.text.trim()
+            : null,
       );
 
-      if (success && mounted) {
-        // If signing up as manager, also apply for manager role
-        if (_selectedRole == AppConstants.roleManager) {
-          await authProvider.applyForManager(
-            _companyNameController.text.trim(),
-            _credentialDetailsController.text.trim(),
-          );
-        }
+      print("DEBUG: Signup call returned success: $success");
 
-        // Navigate to login or show success message
-        if (mounted) {
-          _showSnack('Account created successfully! Please login.');
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const LoginScreen()),
-          );
-        }
+      if (success && mounted) {
+        print("DEBUG: Signup successful, navigating to email confirmation screen");
+        print("DEBUG: Email: ${_emailController.text.trim()}");
+        print("DEBUG: Role: $_selectedRole");
+        _showSnack('Account created successfully! Please check your email.');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => EmailConfirmationScreen(
+              email: _emailController.text.trim(),
+              role: _selectedRole,
+            ),
+          ),
+        );
+      } else if (!success && mounted) {
+        print("DEBUG: Signup returned false");
+        print("DEBUG: Auth provider error: ${authProvider.error}");
+        _showSnack(
+          authProvider.error ?? 'Failed to create account. Please try again.',
+        );
+      } else {
+        print("DEBUG: Component not mounted or unexpected state");
       }
     } catch (e) {
+      print("DEBUG: Signup failed with error: $e");
+      print("DEBUG: Error type: ${e.runtimeType}");
       _showSnack('Something went wrong: $e');
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        print("DEBUG: Set loading state to false");
+      }
+      print("=== SIGNUP DEBUG END ===");
     }
   }
 
@@ -312,7 +356,6 @@ class _SignupScreenState extends State<SignupScreen> {
   void initState() {
     super.initState();
 
-    // Setup autocorrect for password when field loses focus
     _passwordController.addListener(() {
       final password = _passwordController.text;
       if (mounted && password.isNotEmpty && password.length >= 6) {
@@ -764,6 +807,9 @@ class _SignupScreenState extends State<SignupScreen> {
                           maxLines: null,
                           minLines: 3,
                           style: TextStyle(color: AppColors.background),
+                          cursorColor: cs.secondary,
+                          cursorWidth: 2,
+                          cursorRadius: const Radius.circular(2),
                           decoration: InputDecoration(
                             labelText: "Business Details & Credentials",
                             prefixIcon: Icon(

@@ -7,36 +7,33 @@ import '../models/user.dart';
 class AuthService {
   final supabase = Supabase.instance.client;
 
-  // Login with email and password
+  // Login with email and password using direct Supabase
   Future<UserModel?> login(String email, String password) async {
     try {
-      final response = await http.post(
-        Uri.parse('${AppConstants.apiBaseUrl}/auth/login'),
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: {
-          'username': email,
-          'password': password,
-        },
+      final authResponse = await supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
       );
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final accessToken = data['access_token'];
-
-        // Store the access token
-        await supabase.auth.setSession(accessToken);
-
-        // Get user profile
-        final user = await getCurrentUserProfile();
-        return user;
+      if (authResponse.user == null) {
+        throw Exception('Login failed: No user returned');
       }
-      return null;
+
+      // Fetch user profile from profiles table
+      final profileResponse = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authResponse.user!.id)
+          .single();
+
+      return UserModel.fromJson(profileResponse);
     } catch (e) {
       rethrow;
     }
   }
 
   // Signup new user
+  // UPDATED: Uses metadata and relies on SQL Triggers
   Future<UserModel?> signup({
     required String email,
     required String password,
@@ -44,49 +41,63 @@ class AuthService {
     String? phoneNumber,
     String? avatarUrl,
     String? cnic,
+    String role = 'passenger',
+    String? companyName,
+    String? credentialDetails,
   }) async {
     try {
-      final signupData = {
-        'email': email,
-        'password': password,
-        'full_name': fullName,
-        'phone_number': phoneNumber,
-        'avatar_url': avatarUrl,
-        'cnic': cnic,
+      // 1. Prepare the User Metadata
+      // This data is passed to Supabase and read by the Postgres Trigger 'handle_new_user'
+      final String actualCnic = cnic ?? "PENDING-CNIC-${email.split('@').first}";
+
+      final Map<String, dynamic> metadata = {
+        "full_name": fullName,
+        "phone_number": phoneNumber,
+        "avatar_url": avatarUrl,
+        "cnic": actualCnic,
+        "role": role,
+        // Only include manager details if they are provided
+        if (companyName != null) "company_name": companyName,
+        if (credentialDetails != null) "credential_details": credentialDetails,
       };
 
-      final response = await http.post(
-        Uri.parse('${AppConstants.apiBaseUrl}/auth/signup'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(signupData),
+      // 2. Perform Signup
+      final authResponse = await supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: metadata, // <--- IMPORTANT: This sends data to the SQL Trigger
       );
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final accessToken = data['access_token'];
-
-        // Store the access token
-        await supabase.auth.setSession(accessToken);
-
-        // Get user profile
-        final user = await getCurrentUserProfile();
-        return user;
+      if (authResponse.user == null) {
+        throw Exception('Signup failed: No user returned from server.');
       }
-      return null;
+
+      final userId = authResponse.user!.id;
+
+      // 3. Return UserModel immediately
+      // We do NOT manually insert into 'profiles' or 'wallets' here.
+      // The Database Trigger handles that automatically to avoid race conditions.
+      return UserModel(
+        id: userId,
+        email: email,
+        fullName: fullName,
+        phoneNumber: phoneNumber,
+        avatarUrl: avatarUrl,
+        role: role,
+      );
+
+    } on AuthException catch (e) {
+      // Capture specific Supabase errors (e.g. "User already registered")
+      throw Exception(e.message);
     } catch (e) {
-      rethrow;
+      // Capture unexpected errors
+      throw Exception('Signup Error: $e');
     }
   }
 
   // Logout
   Future<void> logout() async {
     try {
-      // Call logout endpoint
-      await http.post(
-        Uri.parse('${AppConstants.apiBaseUrl}/auth/logout'),
-        headers: _getAuthHeaders(),
-      );
-
       // Sign out from Supabase
       await supabase.auth.signOut();
     } catch (e) {
@@ -97,16 +108,16 @@ class AuthService {
   // Get current user profile
   Future<UserModel?> getCurrentUserProfile() async {
     try {
-      final response = await http.get(
-        Uri.parse('${AppConstants.apiBaseUrl}/profile'),
-        headers: _getAuthHeaders(),
-      );
+      final user = supabase.auth.currentUser;
+      if (user == null) return null;
 
-      if (response.statusCode == 200) {
-        final userData = json.decode(response.body);
-        return UserModel.fromJson(userData);
-      }
-      return null;
+      final profileResponse = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+      return UserModel.fromJson(profileResponse);
     } catch (e) {
       return null;
     }
