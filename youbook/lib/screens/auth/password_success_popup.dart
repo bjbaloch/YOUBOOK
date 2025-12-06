@@ -51,75 +51,76 @@ class _SuccessPopupState extends State<SuccessPopup> {
     return WillPopScope(
       // Prevent back key to ensure minimum display time
       onWillPop: () async => false,
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: _goToLogin,
-        child: Center(
-          child: Dialog(
-            backgroundColor: cs.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            insetPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 24,
-            ),
-            child: SizedBox(
-              width: dialogWidth,
-              height: dialogHeight,
-              child: Padding(
-                // Keyboard-safe (though not likely needed here)
-                padding: EdgeInsets.only(
-                  left: 24,
-                  right: 24,
-                  top: 45,
-                  bottom: 24 + MediaQuery.of(context).viewInsets.bottom,
-                ),
-                child: SingleChildScrollView(
-                  physics: const ClampingScrollPhysics(),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Green Circle with check
-                      Container(
-                        width: 100,
-                        height: 100,
-                        decoration: const BoxDecoration(
-                          color: AppColors.circleGreen,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.check,
-                          size: 70,
-                          color: AppColors.textOnCircle,
-                        ),
-                      ),
-                      const SizedBox(height: 50),
-
-                      // Success text
-                      Text(
-                        "Your password has been changed successfully",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 20, color: cs.onSurface),
-                      ),
-                      const SizedBox(height: 2),
-
-                      // Tap instruction (appears after 3s)
-                      AnimatedOpacity(
-                        opacity: _canClose ? 1.0 : 0.0,
-                        duration: const Duration(milliseconds: 250),
-                        child: Text(
-                          "Tap anywhere to go to Login",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: cs.onSurface.withOpacity(0.6),
-                          ),
-                        ),
-                      ),
-                    ],
+      child: Center(
+        child: Dialog(
+          backgroundColor: AppColors.background,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 24,
+          ),
+          child: SizedBox(
+            width: dialogWidth,
+            height: dialogHeight,
+            child: Padding(
+              // Keyboard-safe (though not likely needed here)
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 30,
+                bottom: 24 + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Green Circle with check
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: const BoxDecoration(
+                      color: AppColors.circleGreen,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check,
+                      size: 70,
+                      color: AppColors.textOnCircle,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 30),
+
+                  // Success text
+                  const Text(
+                    "Your password has been changed successfully",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 30),
+
+                  // Done button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 40,
+                    child: ElevatedButton(
+                      onPressed: _goToLogin,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accentOrange,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                      child: Text(
+                        "Done",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

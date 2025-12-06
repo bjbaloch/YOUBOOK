@@ -32,7 +32,7 @@ class AppColors {
 
   static const Color accent = Color(0xFFFFA800);
   static const Color success = Color(0xFF2E7D32);
-  static const Color error = Color.fromARGB(255, 180, 29, 29);
+  static const Color error = Color.fromARGB(255, 206, 32, 32);
 
   static const Color inputBorder = Color(0xFF000000);
   static const Color hint = Color(0x99000000);
@@ -82,7 +82,7 @@ class AppTheme {
       onPrimary: AppColors.textWhite,
       secondary: AppColors.accentOrange,
       onSecondary: AppColors.textWhite,
-      error: AppColors.red,
+      error: AppColors.error,
       onError: AppColors.textWhite,
       background: AppColors.background,
       onBackground: AppColors.textBlack,

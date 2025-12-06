@@ -3,7 +3,7 @@ import 'dart:io'; // SocketException + lookup
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-//import 'package:youbook/screens/auth/reset_password_popup.dart';
+import 'package:youbook/screens/auth/reset_password_popup.dart';
 import 'package:youbook/core/theme/app_colors.dart';
 
 class ForgetPasswordPopup extends StatefulWidget {
@@ -222,28 +222,23 @@ class _ForgetPasswordPopupState extends State<ForgetPasswordPopup> {
 
       Navigator.of(context, rootNavigator: true).pop();
 
-      // // ✅ Smooth open ResetPasswordPopup too
-      // showGeneralDialog(
-      //   context: context,
-      //   barrierDismissible: false,
-      //   barrierLabel: "Reset Password",
-      //   barrierColor: AppColors.black45,
-      //   transitionDuration: const Duration(milliseconds: 300),
-      //   pageBuilder: (_, __, ___) => const ResetPasswordPopup(),
-      //   transitionBuilder: (_, anim, __, child) {
-      //     return FadeTransition(
-      //       opacity: anim,
-      //       child: ScaleTransition(
-      //         scale: CurvedAnimation(parent: anim, curve: Curves.easeOutBack),
-      //         child: child,
-      //       ),
-      //     );
-      //   },
-      // );
-
-      // For now, just show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Code verified successfully!')),
+      // ✅ Smooth open ResetPasswordPopup too
+      showGeneralDialog(
+        context: context,
+        barrierDismissible: false,
+        barrierLabel: "Reset Password",
+        barrierColor: AppColors.black45,
+        transitionDuration: const Duration(milliseconds: 300),
+        pageBuilder: (_, __, ___) => const ResetPasswordPopup(),
+        transitionBuilder: (_, anim, __, child) {
+          return FadeTransition(
+            opacity: anim,
+            child: ScaleTransition(
+              scale: CurvedAnimation(parent: anim, curve: Curves.easeOutBack),
+              child: child,
+            ),
+          );
+        },
       );
     } catch (e) {
       setState(() => _codeError = "Invalid or expired code. Please try again.");
@@ -256,7 +251,6 @@ class _ForgetPasswordPopupState extends State<ForgetPasswordPopup> {
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.of(context).size.width;
     final double dialogWidth = screenWidth > 500 ? 500 : screenWidth - 45;
-    const double dialogHeight = 370;
 
     final bool lockEmailField = !_hasInitialEmail;
     final String emailTrim = _emailController.text.trim();
@@ -280,9 +274,8 @@ class _ForgetPasswordPopupState extends State<ForgetPasswordPopup> {
             borderRadius: BorderRadius.circular(20),
           ),
           backgroundColor: AppColors.background,
-          child: SizedBox(
-            width: dialogWidth,
-            height: dialogHeight,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: dialogWidth),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Form(
@@ -290,6 +283,7 @@ class _ForgetPasswordPopupState extends State<ForgetPasswordPopup> {
                 child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -315,106 +309,105 @@ class _ForgetPasswordPopupState extends State<ForgetPasswordPopup> {
 
                       const Text("Email address"),
                       const SizedBox(height: 5),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Stack(
+                        alignment: Alignment.centerRight,
                         children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _emailController,
-                              readOnly: lockEmailField,
-                              enableInteractiveSelection: !lockEmailField,
-                              onTap: lockEmailField
-                                  ? () => FocusScope.of(context).unfocus()
-                                  : null,
-                              keyboardType: TextInputType.emailAddress,
-                              cursorColor: cs.secondary,
-                              cursorWidth: 2,
-                              cursorRadius: const Radius.circular(2),
-                              style: TextStyle(color: AppColors.textBlack),
-                              decoration: InputDecoration(
-                                prefixIcon: Icon(
-                                  Icons.email_outlined,
-                                  color: AppColors.lightSeaGreen,
+                          TextField(
+                            controller: _emailController,
+                            readOnly: lockEmailField,
+                            enableInteractiveSelection: !lockEmailField,
+                            onTap: lockEmailField
+                                ? () => FocusScope.of(context).unfocus()
+                                : null,
+                            keyboardType: TextInputType.emailAddress,
+                            cursorColor: cs.secondary,
+                            cursorWidth: 2,
+                            cursorRadius: const Radius.circular(2),
+                            style: TextStyle(color: AppColors.textBlack),
+                            decoration: InputDecoration(
+                              prefixIcon: Icon(
+                                Icons.email_outlined,
+                                color: AppColors.lightSeaGreen,
+                              ),
+                              hintText: lockEmailField
+                                  ? "Enter email on Login page"
+                                  : "Email address",
+                              labelText: "Email address",
+                              labelStyle: TextStyle(
+                                color: AppColors.lightSeaGreen.withOpacity(0.4),
+                              ),
+                              floatingLabelStyle: TextStyle(
+                                color: AppColors.textBlack,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              hintStyle: TextStyle(
+                                color: AppColors.textBlack.withOpacity(0.4),
+                              ),
+                              filled: true,
+                              fillColor: AppColors.transparent,
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 14,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(30),
+                                borderSide: BorderSide(
+                                  color: AppColors.accentOrange,
                                 ),
-                                hintText: lockEmailField
-                                    ? "Enter email on Login page"
-                                    : "Email address",
-                                labelText: "Email address",
-                                labelStyle: TextStyle(
-                                  color: AppColors.lightSeaGreen.withOpacity(
-                                    0.4,
-                                  ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(30),
+                                borderSide: BorderSide(
+                                  color: AppColors.accentOrange,
                                 ),
-                                floatingLabelStyle: TextStyle(
-                                  color: AppColors.textBlack,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                hintStyle: TextStyle(
-                                  color: AppColors.textBlack.withOpacity(0.4),
-                                ),
-                                filled: true,
-                                fillColor: AppColors.transparent,
-                                isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 14,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                  borderSide: BorderSide(
-                                    color: AppColors.accentOrange,
-                                  ),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                  borderSide: BorderSide(
-                                    color: AppColors.accentOrange,
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                  borderSide: BorderSide(
-                                    color: cs.secondary,
-                                    width: 2,
-                                  ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(30),
+                                borderSide: BorderSide(
+                                  color: cs.secondary,
+                                  width: 2,
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 6),
-                          SizedBox(
-                            width: 80,
-                            height: 40,
-                            child: ElevatedButton(
-                              onPressed: disableGetButton
-                                  ? null
-                                  : _sendResetCode,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.accentOrange,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30),
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: SizedBox(
+                              width: 80,
+                              height: 40,
+                              child: ElevatedButton(
+                                onPressed: disableGetButton
+                                    ? null
+                                    : _sendResetCode,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.accentOrange,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                  padding: EdgeInsets.zero,
                                 ),
+                                child: _isSending
+                                    ? SizedBox(
+                                        height: 18,
+                                        width: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: AppColors.lightSeaGreen,
+                                        ),
+                                      )
+                                    : Text(
+                                        _cooldown > 0
+                                            ? "Resend ${_cooldown}s"
+                                            : "Get",
+                                        style: TextStyle(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                          fontSize: 14,
+                                        ),
+                                      ),
                               ),
-                              child: _isSending
-                                  ? SizedBox(
-                                      height: 18,
-                                      width: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: AppColors.lightSeaGreen,
-                                      ),
-                                    )
-                                  : Text(
-                                      _cooldown > 0
-                                          ? "Resend${_cooldown}s"
-                                          : "Get",
-                                      style: TextStyle(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onPrimary,
-                                        fontSize: 14,
-                                      ),
-                                    ),
                             ),
                           ),
                         ],
@@ -496,8 +489,30 @@ class _ForgetPasswordPopupState extends State<ForgetPasswordPopup> {
 
                       const SizedBox(height: 20),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          SizedBox(
+                            width: 150,
+                            height: 40,
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: AppColors.accentOrange),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                              child: Text(
+                                "Cancel",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
+                                ),
+                              ),
+                            ),
+                          ),
                           SizedBox(
                             width: 150,
                             height: 40,
@@ -510,8 +525,13 @@ class _ForgetPasswordPopupState extends State<ForgetPasswordPopup> {
                                 ),
                               ),
                               child: _isVerifying
-                                  ? CircularProgressIndicator(
-                                      color: AppColors.lightSeaGreen,
+                                  ? SizedBox(
+                                      height: 18,
+                                      width: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: AppColors.lightSeaGreen,
+                                      ),
                                     )
                                   : Text(
                                       "Continue",
