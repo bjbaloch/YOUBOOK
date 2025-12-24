@@ -40,14 +40,18 @@ class AuthProvider with ChangeNotifier {
     try {
       // Check for stored session
       final sessionJson = await _storage.read(key: 'user_session');
-      print('DEBUG: AuthProvider stored session exists: ${sessionJson != null}');
+      print(
+        'DEBUG: AuthProvider stored session exists: ${sessionJson != null}',
+      );
       if (sessionJson != null) {
         // Validate and restore session
         print('DEBUG: AuthProvider validating stored session');
         final user = await _authService.getCurrentUserProfile();
         if (user != null) {
           _user = user;
-          print('DEBUG: AuthProvider restored user from stored session: ${user.email}');
+          print(
+            'DEBUG: AuthProvider restored user from stored session: ${user.email}',
+          );
         } else {
           print('DEBUG: AuthProvider stored session invalid, logging out');
           await logout();
@@ -56,7 +60,9 @@ class AuthProvider with ChangeNotifier {
         // No stored session, but check if user is authenticated via Supabase
         // (e.g., from deep link or fresh login)
         final currentUser = Supabase.instance.client.auth.currentUser;
-        print('DEBUG: AuthProvider no stored session, current Supabase user: ${currentUser?.email}');
+        print(
+          'DEBUG: AuthProvider no stored session, current Supabase user: ${currentUser?.email}',
+        );
         if (currentUser != null) {
           // User is authenticated, try to get profile
           // Don't sign out if profile doesn't exist yet (database trigger delay)
@@ -65,9 +71,13 @@ class AuthProvider with ChangeNotifier {
           if (user != null) {
             _user = user;
             await _saveSession(user);
-            print('DEBUG: AuthProvider set user from Supabase auth: ${user.email}');
+            print(
+              'DEBUG: AuthProvider set user from Supabase auth: ${user.email}',
+            );
           } else {
-            print('DEBUG: AuthProvider profile not found yet, leaving user as null');
+            print(
+              'DEBUG: AuthProvider profile not found yet, leaving user as null',
+            );
           }
           // If profile doesn't exist, leave _user as null but don't sign out
           // The UI will handle this case appropriately
@@ -82,7 +92,9 @@ class AuthProvider with ChangeNotifier {
     } finally {
       _isLoading = false;
       Future.microtask(() => notifyListeners());
-      print('DEBUG: AuthProvider initializeAuth completed, isAuthenticated: $isAuthenticated');
+      print(
+        'DEBUG: AuthProvider initializeAuth completed, isAuthenticated: $isAuthenticated',
+      );
     }
 
     // Listen to auth state changes
@@ -125,8 +137,17 @@ class AuthProvider with ChangeNotifier {
   }
 
   // Signup
-  Future<bool> signup(String email, String password, String fullName,
-      {String? phoneNumber, String? avatarUrl, String? cnic, String role = 'passenger', String? companyName, String? credentialDetails}) async {
+  Future<bool> signup(
+    String email,
+    String password,
+    String fullName, {
+    String? phoneNumber,
+    String? avatarUrl,
+    String? cnic,
+    String role = 'passenger',
+    String? companyName,
+    String? credentialDetails,
+  }) async {
     _isLoading = true;
     _error = null;
     Future.microtask(() => notifyListeners());
@@ -174,13 +195,19 @@ class AuthProvider with ChangeNotifier {
   }
 
   // Apply for manager role
-  Future<bool> applyForManager(String companyName, String credentialDetails) async {
+  Future<bool> applyForManager(
+    String companyName,
+    String credentialDetails,
+  ) async {
     _isLoading = true;
     _error = null;
     Future.microtask(() => notifyListeners());
 
     try {
-      final success = await _authService.applyForManager(companyName, credentialDetails);
+      final success = await _authService.applyForManager(
+        companyName,
+        credentialDetails,
+      );
       if (success) {
         // Refresh user profile to get updated status
         await refreshProfile();
