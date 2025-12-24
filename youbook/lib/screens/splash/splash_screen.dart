@@ -2,10 +2,13 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../auth/login_screen.dart';
+import '../auth/email_confirmation_screen.dart';
 import '../passenger/home_shell.dart';
 import '../manager/manager_dashboard.dart';
 import '../driver/driver_home_screen.dart';
@@ -131,10 +134,73 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
-  void _navigateToNextScreen(AuthProvider authProvider) {
+  Future<void> _navigateToNextScreen(AuthProvider authProvider) async {
+    print('DEBUG: Starting _navigateToNextScreen');
+
     Widget nextScreen;
 
-    if (authProvider.isAuthenticated) {
+    // Check if there's pending email confirmation data
+    final prefs = await SharedPreferences.getInstance();
+    final pendingEmail = prefs.getString('pending_email');
+    final pendingRole = prefs.getString('pending_role');
+
+    // Check if Supabase user exists (even if profile doesn't)
+    final supabaseUser = Supabase.instance.client.auth.currentUser;
+
+    print('DEBUG: pendingEmail: $pendingEmail');
+    print('DEBUG: pendingRole: $pendingRole');
+    print('DEBUG: supabaseUser exists: ${supabaseUser != null}');
+    print('DEBUG: supabaseUser email: ${supabaseUser?.email}');
+    print('DEBUG: emailConfirmedAt: ${supabaseUser?.emailConfirmedAt}');
+    print('DEBUG: authProvider.isAuthenticated: ${authProvider.isAuthenticated}');
+    print('DEBUG: authProvider.user: ${authProvider.user}');
+    print('DEBUG: authProvider.userRole: ${authProvider.userRole}');
+
+    print('DEBUG: Evaluating navigation conditions...');
+
+    if (pendingEmail != null && pendingRole != null && supabaseUser != null) {
+      print('DEBUG: Has pending confirmation data and supabase user');
+      // User is authenticated in Supabase but might be in email confirmation flow
+      if (supabaseUser.emailConfirmedAt == null) {
+        print('DEBUG: Email not confirmed, showing EmailConfirmationScreen');
+        // Email not confirmed yet, show confirmation screen
+        final pendingCompanyName = prefs.getString('pending_company_name');
+        final pendingCredentialDetails = prefs.getString('pending_credential_details');
+
+        nextScreen = EmailConfirmationScreen(
+          email: pendingEmail,
+          role: pendingRole,
+          companyName: pendingCompanyName,
+          credentialDetails: pendingCredentialDetails,
+        );
+      } else {
+        print('DEBUG: Email confirmed, clearing pending data and navigating normally');
+        // Email is confirmed, clear stored data and navigate normally
+        await _clearPendingConfirmationData();
+
+        // Navigate based on user role (now that profile should exist)
+        if (authProvider.isAuthenticated) {
+          print('DEBUG: User authenticated, navigating based on role: ${authProvider.userRole}');
+          switch (authProvider.userRole) {
+            case AppConstants.roleManager:
+              nextScreen = const ManagerDashboard();
+              break;
+            case AppConstants.roleDriver:
+              nextScreen = const DriverHomeScreen();
+              break;
+            case AppConstants.rolePassenger:
+            default:
+              nextScreen = const HomeShell();
+              break;
+          }
+        } else {
+          print('DEBUG: User not authenticated after confirmation, going to login');
+          // Profile still doesn't exist, go to login
+          nextScreen = const LoginScreen();
+        }
+      }
+    } else if (authProvider.isAuthenticated) {
+      print('DEBUG: No pending data but user authenticated, navigating based on role: ${authProvider.userRole}');
       // Navigate based on user role
       switch (authProvider.userRole) {
         case AppConstants.roleManager:
@@ -149,16 +215,31 @@ class _SplashScreenState extends State<SplashScreen>
           break;
       }
     } else {
+      print('DEBUG: User not authenticated, going to login screen');
       // User not authenticated, go to login
       nextScreen = const LoginScreen();
     }
 
+    print('DEBUG: Next screen decided: ${nextScreen.runtimeType}');
+
     if (mounted) {
+      print('DEBUG: Navigating to ${nextScreen.runtimeType}');
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => nextScreen),
       );
+      print('DEBUG: Navigation completed');
+    } else {
+      print('DEBUG: Component not mounted, skipping navigation');
     }
+  }
+
+  Future<void> _clearPendingConfirmationData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('pending_email');
+    await prefs.remove('pending_role');
+    await prefs.remove('pending_company_name');
+    await prefs.remove('pending_credential_details');
   }
 
   @override

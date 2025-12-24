@@ -33,34 +33,70 @@ class AuthProvider with ChangeNotifier {
 
   // Initialize auth state
   Future<void> initializeAuth() async {
+    print('DEBUG: AuthProvider initializeAuth started');
     _isLoading = true;
     Future.microtask(() => notifyListeners());
 
     try {
       // Check for stored session
       final sessionJson = await _storage.read(key: 'user_session');
+      print('DEBUG: AuthProvider stored session exists: ${sessionJson != null}');
       if (sessionJson != null) {
         // Validate and restore session
+        print('DEBUG: AuthProvider validating stored session');
         final user = await _authService.getCurrentUserProfile();
         if (user != null) {
           _user = user;
+          print('DEBUG: AuthProvider restored user from stored session: ${user.email}');
         } else {
+          print('DEBUG: AuthProvider stored session invalid, logging out');
           await logout();
+        }
+      } else {
+        // No stored session, but check if user is authenticated via Supabase
+        // (e.g., from deep link or fresh login)
+        final currentUser = Supabase.instance.client.auth.currentUser;
+        print('DEBUG: AuthProvider no stored session, current Supabase user: ${currentUser?.email}');
+        if (currentUser != null) {
+          // User is authenticated, try to get profile
+          // Don't sign out if profile doesn't exist yet (database trigger delay)
+          print('DEBUG: AuthProvider fetching profile for authenticated user');
+          final user = await _authService.getCurrentUserProfile();
+          if (user != null) {
+            _user = user;
+            await _saveSession(user);
+            print('DEBUG: AuthProvider set user from Supabase auth: ${user.email}');
+          } else {
+            print('DEBUG: AuthProvider profile not found yet, leaving user as null');
+          }
+          // If profile doesn't exist, leave _user as null but don't sign out
+          // The UI will handle this case appropriately
+        } else {
+          print('DEBUG: AuthProvider no stored session and no Supabase auth');
         }
       }
     } catch (e) {
       _error = e.toString();
-      await logout();
+      print('DEBUG: AuthProvider initializeAuth error: $e');
+      // Don't automatically logout on error - let UI handle it
     } finally {
       _isLoading = false;
       Future.microtask(() => notifyListeners());
+      print('DEBUG: AuthProvider initializeAuth completed, isAuthenticated: $isAuthenticated');
     }
 
     // Listen to auth state changes
+    print('DEBUG: AuthProvider setting up auth state change listener');
     Supabase.instance.client.auth.onAuthStateChange.listen((event) {
+      print('DEBUG: AuthProvider auth state change: ${event.event}');
       if (event.event == AuthChangeEvent.signedOut) {
+        print('DEBUG: AuthProvider user signed out, clearing user');
         _user = null;
         Future.microtask(() => notifyListeners());
+      } else if (event.event == AuthChangeEvent.signedIn) {
+        print('DEBUG: AuthProvider user signed in, refreshing profile');
+        // User signed in, refresh profile
+        refreshProfile();
       }
     });
   }

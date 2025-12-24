@@ -1,20 +1,28 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/providers/auth_provider.dart';
 import '../passenger/home_shell.dart';
 import '../manager/manager_dashboard.dart';
+import '../manager/manager_waiting_screen.dart';
 import 'login_screen.dart';
 
 class EmailConfirmationScreen extends StatefulWidget {
   final String email;
   final String role;
+  final String? companyName;
+  final String? credentialDetails;
 
   const EmailConfirmationScreen({
     super.key,
     required this.email,
     required this.role,
+    this.companyName,
+    this.credentialDetails,
   });
 
   @override
@@ -38,14 +46,40 @@ class _EmailConfirmationScreenState extends State<EmailConfirmationScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    print('DEBUG: EmailConfirmationScreen didChangeDependencies called');
+    // Listen for AuthProvider changes
+    final authProvider = Provider.of<AuthProvider>(context, listen: true);
+    print('DEBUG: AuthProvider isAuthenticated: ${authProvider.isAuthenticated}, user: ${authProvider.user}');
+    if (authProvider.isAuthenticated && authProvider.user != null) {
+      print('DEBUG: User authenticated and has profile');
+      // User is authenticated and has profile, check if email is confirmed
+      final user = Supabase.instance.client.auth.currentUser;
+      print('DEBUG: Supabase currentUser: ${user?.email}, emailConfirmedAt: ${user?.emailConfirmedAt}');
+      if (user != null && user.emailConfirmedAt != null) {
+        print('DEBUG: Email confirmed, calling _showSuccessAndNavigate');
+        _showSuccessAndNavigate();
+      } else {
+        print('DEBUG: Email not confirmed yet');
+      }
+    } else {
+      print('DEBUG: User not authenticated or no profile yet');
+    }
+  }
+
+  @override
   void dispose() {
     _resendTimer?.cancel();
     super.dispose();
   }
 
   void _listenForAuthChanges() {
+    print('DEBUG: EmailConfirmationScreen _listenForAuthChanges setup');
     supabase.auth.onAuthStateChange.listen((event) {
+      print('DEBUG: Auth state change: ${event.event}');
       if (event.event == AuthChangeEvent.signedIn && mounted) {
+        print('DEBUG: Signed in event received, calling _showSuccessAndNavigate');
         // Email confirmed successfully
         _showSuccessAndNavigate();
       }
@@ -53,8 +87,13 @@ class _EmailConfirmationScreenState extends State<EmailConfirmationScreen> {
   }
 
   void _showSuccessAndNavigate() {
-    if (!mounted) return;
+    print('DEBUG: _showSuccessAndNavigate called');
+    if (!mounted) {
+      print('DEBUG: Component not mounted, returning');
+      return;
+    }
 
+    print('DEBUG: Showing success snackbar');
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Email confirmed successfully!'),
@@ -66,18 +105,25 @@ class _EmailConfirmationScreenState extends State<EmailConfirmationScreen> {
     Widget nextScreen;
     switch (widget.role) {
       case AppConstants.roleManager:
-        nextScreen = const ManagerDashboard();
+        print('DEBUG: Navigating to ManagerWaitingScreen');
+        nextScreen = ManagerWaitingScreen(
+          companyName: widget.companyName,
+          credentialDetails: widget.credentialDetails,
+        );
         break;
       case AppConstants.rolePassenger:
       default:
+        print('DEBUG: Navigating to HomeShell');
         nextScreen = const HomeShell();
         break;
     }
 
+    print('DEBUG: Performing navigation to ${nextScreen.runtimeType}');
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => nextScreen),
     );
+    print('DEBUG: Navigation completed');
   }
 
   Future<void> _resendConfirmationEmail() async {
@@ -147,49 +193,47 @@ class _EmailConfirmationScreenState extends State<EmailConfirmationScreen> {
     });
 
     try {
-      // Get current session
-      final session = supabase.auth.currentSession;
+      // First, try to refresh the session if we have one
+      final currentSession = supabase.auth.currentSession;
+      if (currentSession != null) {
+        try {
+          await supabase.auth.refreshSession();
+        } catch (e) {
+          print('DEBUG: Refresh session failed: $e');
+        }
+      }
+
+      // Check current user
       final user = supabase.auth.currentUser;
 
       print('DEBUG: Checking verification status');
       print('DEBUG: Current user: ${user?.email}');
-      print('DEBUG: Session exists: ${session != null}');
+      print('DEBUG: Session exists: ${currentSession != null}');
       print('DEBUG: Email confirmed: ${user?.emailConfirmedAt != null}');
 
       if (user != null && user.emailConfirmedAt != null) {
         print('DEBUG: Email confirmed, navigating...');
         _showSuccessAndNavigate();
-      } else if (user != null && user.email == widget.email) {
-        // User exists but email not confirmed
-        setState(() {
-          _message =
-              'Email not yet confirmed. Please check your email and click the confirmation link.';
-        });
-      } else {
-        // No user session, try to check if user was created
-        try {
-          // Try to sign in to refresh session (this might work if email was confirmed)
-          await supabase.auth.signInWithPassword(
-            email: widget.email,
-            password:
-                'dummy_password', // This will fail but might refresh session
-          );
-        } catch (signInError) {
-          print('DEBUG: Sign in failed (expected): $signInError');
-        }
-
-        // Check again after attempted sign in
-        final updatedUser = supabase.auth.currentUser;
-        if (updatedUser != null && updatedUser.emailConfirmedAt != null) {
-          print('DEBUG: Email confirmed after refresh, navigating...');
-          _showSuccessAndNavigate();
-        } else {
-          setState(() {
-            _message =
-                'Email not yet confirmed. Please check your email and click the confirmation link, then try again.';
-          });
-        }
+        return;
       }
+
+      // If no user or not confirmed, try to get user from server
+      try {
+        final userResponse = await supabase.auth.getUser();
+        final serverUser = userResponse.user;
+        if (serverUser != null && serverUser.emailConfirmedAt != null) {
+          print('DEBUG: Email confirmed from server, navigating...');
+          _showSuccessAndNavigate();
+          return;
+        }
+      } catch (e) {
+        print('DEBUG: getUser failed: $e');
+      }
+
+      // Not confirmed yet
+      setState(() {
+        _message = 'Email not yet confirmed. Please check your email and click the confirmation link.';
+      });
     } catch (e) {
       print('DEBUG: Error checking verification status: $e');
       setState(() {
@@ -344,8 +388,13 @@ class _EmailConfirmationScreenState extends State<EmailConfirmationScreen> {
                     ),
                   ),
                   child: _isLoading
-                      ? CircularProgressIndicator(
-                          color: AppColors.lightSeaGreen,
+                      ? SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.lightSeaGreen,
+                          ),
                         )
                       : const Text(
                           'Continue',

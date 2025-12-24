@@ -5,14 +5,12 @@ class SupabaseConfig {
   static const String url = "https://blycroutezsjhduujaai.supabase.co";
   static const String anonKey =
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJseWNyb3V0ZXpzamhkdXVqYWFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4NDA4NTMsImV4cCI6MjA3MTQxNjg1M30.qcUskhKy_UR-IqWaECfI3j7CbJ66xtLCSedg6CKVkfQ";
-  static const String serviceRoleKey = 'YOUR_SUPABASE_SERVICE_ROLE_KEY';
+  static const String serviceRoleKey =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJseWNyb3V0ZXpzamhkdXVqYWFpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTg0MDg1MywiZXhwIjoyMDcxNDE2ODUzfQ.SInsq2HL6zAX4gZwA6U059RcV7m_G4mgasFNNhdAU9o';
 
   /// Initialize Supabase
   static Future<void> initialize() async {
-    await Supabase.initialize(
-      url: url,
-      anonKey: anonKey,
-    );
+    await Supabase.initialize(url: url, anonKey: anonKey);
   }
 
   /// Get Supabase client instance

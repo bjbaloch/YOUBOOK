@@ -584,8 +584,13 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                                     ),
                                   ),
                                   child: authProvider.isLoading
-                                      ? CircularProgressIndicator(
-                                          color: AppColors.lightSeaGreen,
+                                      ? SizedBox(
+                                          height: 18,
+                                          width: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: AppColors.background,
+                                          ),
                                         )
                                       : Text(
                                           "Sign In",

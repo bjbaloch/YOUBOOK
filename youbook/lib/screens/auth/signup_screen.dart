@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
@@ -317,16 +318,34 @@ class _SignupScreenState extends State<SignupScreen> {
       print("DEBUG: Signup call returned success: $success");
 
       if (success && mounted) {
-        print("DEBUG: Signup successful, navigating to email confirmation screen");
+        print(
+          "DEBUG: Signup successful, navigating to email confirmation screen",
+        );
         print("DEBUG: Email: ${_emailController.text.trim()}");
         print("DEBUG: Role: $_selectedRole");
         _showSnack('Account created successfully! Please check your email.');
+
+        // Store signup data for email confirmation screen
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('pending_email', _emailController.text.trim());
+        await prefs.setString('pending_role', _selectedRole);
+        if (_selectedRole == AppConstants.roleManager) {
+          await prefs.setString('pending_company_name', _companyNameController.text.trim());
+          await prefs.setString('pending_credential_details', _credentialDetailsController.text.trim());
+        }
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (_) => EmailConfirmationScreen(
               email: _emailController.text.trim(),
               role: _selectedRole,
+              companyName: _selectedRole == AppConstants.roleManager
+                  ? _companyNameController.text.trim()
+                  : null,
+              credentialDetails: _selectedRole == AppConstants.roleManager
+                  ? _credentialDetailsController.text.trim()
+                  : null,
             ),
           ),
         );
@@ -906,8 +925,13 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                   ),
                   child: _isLoading
-                      ? CircularProgressIndicator(
-                          color: AppColors.lightSeaGreen,
+                      ? SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.lightSeaGreen,
+                          ),
                         )
                       : Text(
                           "Sign Up",
