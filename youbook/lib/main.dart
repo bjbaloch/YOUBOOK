@@ -12,6 +12,8 @@ import 'core/providers/location_provider.dart';
 import 'core/services/background_service.dart';
 import 'core/theme/app_colors.dart';
 import 'screens/splash/splash_screen.dart';
+import 'screens/passenger/home_shell.dart';
+import 'screens/manager/manager_dashboard.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -80,13 +82,14 @@ class _YouBookAppState extends State<YouBookApp> {
   }
 
   void _handleDeepLink(Uri uri) async {
+    print('DEBUG: ===== DEEP LINK PROCESSING START =====');
     print('DEBUG: Received deep link: $uri');
 
     // Handle Supabase auth callback
     if (uri.scheme == 'youbook' && uri.host == 'auth') {
-      print('DEBUG: Deep link is auth callback');
+      print('DEBUG: Deep link is auth callback - processing email confirmation');
 
-      // Parse fragment parameters (format: #access_token=...&refresh_token=...)
+      // Parse fragment parameters (format: #access_token=...&refresh_token=...&type=signup)
       final fragment = uri.fragment;
       if (fragment.isNotEmpty) {
         print('DEBUG: Parsing fragment: $fragment');
@@ -95,35 +98,80 @@ class _YouBookAppState extends State<YouBookApp> {
         final refreshToken = params['refresh_token'];
         final type = params['type'];
 
-        print('DEBUG: Parsed params - access_token: ${accessToken != null ? 'present' : 'null'}, refresh_token: ${refreshToken != null ? 'present' : 'null'}, type: $type');
+        print('DEBUG: Parsed params:');
+        print('DEBUG: - access_token: ${accessToken != null ? 'present (${accessToken.length} chars)' : 'null'}');
+        print('DEBUG: - refresh_token: ${refreshToken != null ? 'present (${refreshToken.length} chars)' : 'null'}');
+        print('DEBUG: - type: $type');
 
-        print('DEBUG: Auth callback received, refreshing app state');
-        // The deep link contains auth information
-        // Supabase should handle the session automatically
-        // We just need to refresh the app state
+        if (accessToken != null && refreshToken != null) {
+          print('DEBUG: Tokens found, refreshing session and forcing navigation');
 
-        try {
-          // Refresh the current session to pick up any auth changes
-          await Supabase.instance.client.auth.refreshSession();
-          print('DEBUG: Session refreshed after deep link');
+          try {
+            // Refresh the current session to pick up any auth changes
+            await Supabase.instance.client.auth.refreshSession();
+            print('DEBUG: Session refreshed successfully');
 
-          // Clear any pending confirmation data since email is now confirmed
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.remove('pending_email');
-          await prefs.remove('pending_role');
-          await prefs.remove('pending_company_name');
-          await prefs.remove('pending_credential_details');
-          print('DEBUG: Cleared pending confirmation data');
+            // Clear any pending confirmation data since email is now confirmed
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('pending_email');
+            await prefs.remove('pending_role');
+            await prefs.remove('pending_company_name');
+            await prefs.remove('pending_credential_details');
+            print('DEBUG: Cleared pending confirmation data');
 
-        } catch (e) {
-          print('DEBUG: Error refreshing session: $e');
+            // Force navigation to appropriate screen based on user role
+            print('DEBUG: Checking current user and navigating...');
+            final currentUser = Supabase.instance.client.auth.currentUser;
+            print('DEBUG: Current user after refresh: ${currentUser?.email}');
+
+            if (currentUser != null) {
+              // Get user role from stored data or default to passenger
+              final userRole = prefs.getString('pending_role') ?? 'passenger';
+              print('DEBUG: User role: $userRole');
+
+              Widget nextScreen;
+              switch (userRole) {
+                case 'manager':
+                  print('DEBUG: Navigating to ManagerDashboard');
+                  nextScreen = const ManagerDashboard();
+                  break;
+                case 'passenger':
+                default:
+                  print('DEBUG: Navigating to HomeShell');
+                  nextScreen = const HomeShell();
+                  break;
+              }
+
+              // Navigate to the appropriate screen
+              if (mounted) {
+                print('DEBUG: Performing navigation to ${nextScreen.runtimeType}');
+                Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => nextScreen),
+                );
+                print('DEBUG: Navigation completed successfully');
+              } else {
+                print('DEBUG: Context not mounted, cannot navigate');
+              }
+            } else {
+              print('DEBUG: No current user after session refresh, staying on current screen');
+            }
+
+          } catch (e) {
+            print('DEBUG: Error during deep link processing: $e');
+            print('DEBUG: Error type: ${e.runtimeType}');
+          }
+        } else {
+          print('DEBUG: Missing access_token or refresh_token in fragment - cannot process auth');
         }
       } else {
-        print('DEBUG: No fragment in deep link URI');
+        print('DEBUG: No fragment in deep link URI - invalid auth callback');
       }
     } else {
-      print('DEBUG: Deep link is not auth callback, ignoring');
+      print('DEBUG: Deep link is not auth callback (scheme: ${uri.scheme}, host: ${uri.host}), ignoring');
     }
+
+    print('DEBUG: ===== DEEP LINK PROCESSING END =====');
   }
 
   @override
