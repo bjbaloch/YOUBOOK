@@ -1,10 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from supabase import Client
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from app.core.auth import get_current_user
 from app.core.database import get_supabase
 from app.schemas.user import User, UserUpdate, ManagerApplication, ManagerApplicationCreate
 
 router = APIRouter()
+
+# Rate limiter for sensitive operations
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.get("/", response_model=User)
@@ -42,7 +47,9 @@ async def update_profile(
 
 # Manager Application Endpoints
 @router.post("/apply-manager", response_model=ManagerApplication)
+@limiter.limit("5/minute")  # Rate limit: 5 applications per minute per IP
 async def apply_for_manager(
+    request: Request,
     application: ManagerApplicationCreate,
     supabase: Client = Depends(get_supabase),
     current_user = Depends(get_current_user)

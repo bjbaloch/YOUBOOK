@@ -11,10 +11,10 @@ import 'core/providers/auth_provider.dart';
 import 'core/providers/location_provider.dart';
 import 'core/services/background_service.dart';
 import 'core/theme/app_colors.dart';
-import 'screens/splash/splash_screen.dart';
+import 'screens/splash_screen/splash_screen.dart';
 import 'screens/passenger/home_shell.dart';
 import 'screens/manager/manager_dashboard.dart';
-import 'screens/manager/manager_waiting_screen.dart';
+import 'screens/manager/manager_waiting_screen/manager_waiting_screen.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();

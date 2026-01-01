@@ -22,7 +22,8 @@ class UserLogin(BaseModel):
 
 
 class UserUpdate(UserBase):
-    pass
+    company_name: Optional[str] = None
+    credential_details: Optional[str] = None
 
 
 class UserInDBBase(UserBase):
