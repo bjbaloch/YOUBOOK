@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/theme/app_colors.dart';
-import '../auth/login_screen.dart';
+import '../../core/theme/snackbar_utils.dart';
+import '../auth/login/login_screen.dart';
+import 'manager_dashboard.dart';
 
 class ManagerWaitingScreen extends StatefulWidget {
   final String? companyName;
@@ -20,15 +26,37 @@ class ManagerWaitingScreen extends StatefulWidget {
 
 class _ManagerWaitingScreenState extends State<ManagerWaitingScreen> {
   bool _isSubmitting = false;
+  bool _hasSubmitted = false; // Track if application has already been submitted
+  bool _isLoading = false; // Loading state for verification checks
 
   @override
   void initState() {
     super.initState();
-    _submitApplication();
+    // Store screen preference for navigation persistence
+    _storeScreenPreference();
+    // Only submit application once when screen is first created
+    if (!_hasSubmitted) {
+      _submitApplication();
+    }
+  }
+
+  Future<void> _storeScreenPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('last_manager_screen', 'waiting');
+    } catch (e) {
+      // Silently handle SharedPreferences errors
+      print('Error storing screen preference: $e');
+    }
   }
 
   Future<void> _submitApplication() async {
     if (widget.companyName == null || widget.credentialDetails == null) {
+      return;
+    }
+
+    // Prevent multiple submissions
+    if (_hasSubmitted) {
       return;
     }
 
@@ -43,36 +71,95 @@ class _ManagerWaitingScreenState extends State<ManagerWaitingScreen> {
         widget.credentialDetails!,
       );
 
+      // Mark as submitted regardless of success/failure to prevent retries
+      _hasSubmitted = true;
+
       if (!mounted) return;
 
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Manager application submitted successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to submit application. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            SnackBarUtils.showSnackBar(
+              context,
+              'Manager application submitted successfully!',
+              type: SnackBarType.success,
+            );
+          }
+        });
       }
+      // Remove failure snackbar as requested
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      // Mark as submitted even on error to prevent infinite retries
+      _hasSubmitted = true;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          SnackBarUtils.showSnackBar(
+            context,
+            'Error: ${e.toString()}',
+            type: SnackBarType.error,
+          );
+        }
+      });
     } finally {
       if (mounted) {
         setState(() {
           _isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _checkVerificationStatus() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Check if manager application is approved
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final isApproved = await authProvider.isManagerApplicationApproved();
+
+      if (!mounted) return;
+
+      if (isApproved) {
+        // Application approved, navigate to dashboard
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const ManagerDashboard()),
+            );
+          }
+        });
+      } else {
+        // Still pending, show message
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            SnackBarUtils.showSnackBar(
+              context,
+              'Application is still under review. Please check back later.',
+              type: SnackBarType.other,
+            );
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            SnackBarUtils.showSnackBar(
+              context,
+              'Error checking status: ${e.toString()}',
+              type: SnackBarType.error,
+            );
+          }
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
         });
       }
     }
@@ -83,50 +170,38 @@ class _ManagerWaitingScreenState extends State<ManagerWaitingScreen> {
     return Scaffold(
       backgroundColor: AppColors.lightSeaGreen,
       appBar: AppBar(
-        title: const Text('Manager Application'),
         backgroundColor: AppColors.lightSeaGreen,
+        elevation: 0,
+        automaticallyImplyLeading: false, // Remove back arrow
         actions: [
-          // Logout button
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              final shouldLogout = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Logout'),
-                  content: const Text('Are you sure you want to logout?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('Logout'),
-                    ),
-                  ],
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            child: SizedBox(
+              child: OutlinedButton(
+                onPressed: () => SystemNavigator.pop(),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: AppColors.accentOrange, width: 1.5),
+                  backgroundColor: Colors.transparent,
+                  padding: EdgeInsets
+                      .zero, // Remove padding to fit exactly in 40 height
+                  minimumSize: const Size(
+                    100,
+                    40,
+                  ), // Ensure minimum size is 40 height
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
                 ),
-              );
-
-              if (shouldLogout ?? false) {
-                final authProvider = Provider.of<AuthProvider>(
-                  context,
-                  listen: false,
-                );
-                await authProvider.logout();
-
-                // Navigate to login screen after logout
-                if (context.mounted) {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const LoginScreen(),
-                    ),
-                    (route) => false,
-                  );
-                }
-              }
-            },
+                child: Text(
+                  'Quit App',
+                  style: TextStyle(
+                    color: AppColors.textWhite,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -191,7 +266,7 @@ class _ManagerWaitingScreenState extends State<ManagerWaitingScreen> {
 
               // Instruction text
               Text(
-                'You will receive an email notification once your application is approved. Please check your email regularly.',
+                'You will receive an email notification within 48 hours once your application is approved. Please check your email regularly.',
                 style: TextStyle(
                   fontSize: 14,
                   color: AppColors.background.withOpacity(0.7),
@@ -261,47 +336,191 @@ class _ManagerWaitingScreenState extends State<ManagerWaitingScreen> {
 
               const SizedBox(height: 40),
 
-              // Company info display
-              if (widget.companyName != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.background.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Company Name:',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.background,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        widget.companyName!,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: AppColors.background.withOpacity(0.9),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-
-              // Help text
+              const Spacer(), // Push content up, support info to bottom
+              // Additional support text
               Text(
-                'If you have any questions, please contact our support team.',
+                'Have any question or for more information contact to our support team.',
                 style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.background.withOpacity(0.6),
+                  fontSize: 14,
+                  color: AppColors.background.withOpacity(0.7),
+                  fontStyle: FontStyle.italic,
                 ),
                 textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 20),
+
+              // Support contact information
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.background.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Contact Support:',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.background,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Email contact - clickable
+                    GestureDetector(
+                      onTap: () async {
+                        // Add haptic feedback
+                        if (!kIsWeb) {
+                          HapticFeedback.lightImpact();
+                        }
+
+                        try {
+                          // Simple direct launch - more reliable than canLaunchUrl check
+                          final Uri emailUri = Uri.parse(
+                            'mailto:youbook210@gmail.com?subject=YOUBOOK Manager Application Support&body=Hello YOUBOOK Support Team,%0A%0AI need assistance with my manager application.%0A%0ABest regards,',
+                          );
+
+                          await launchUrl(
+                            emailUri,
+                            mode: LaunchMode.externalApplication,
+                          );
+                        } catch (e) {
+                          if (mounted) {
+                            SnackBarUtils.showSnackBar(
+                              context,
+                              'Could not open email app',
+                              type: SnackBarType.other,
+                            );
+                          }
+                        }
+                      },
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.email,
+                            size: 20,
+                            color: AppColors.accentOrange,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'youbook210@gmail.com',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppColors.background.withOpacity(0.9),
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios,
+                            size: 16,
+                            color: AppColors.accentOrange,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+                    Divider(
+                      color: AppColors.background.withOpacity(0.3),
+                      thickness: 1,
+                      indent: 0,
+                      endIndent: 0,
+                    ),
+                    const SizedBox(height: 12),
+
+                    // WhatsApp contact - clickable
+                    GestureDetector(
+                      onTap: () async {
+                        // Add haptic feedback
+                        if (!kIsWeb) {
+                          HapticFeedback.lightImpact();
+                        }
+
+                        try {
+                          // Simple direct launch - more reliable than canLaunchUrl check
+                          final Uri whatsappUri = Uri.parse(
+                            'https://wa.me/923171292355',
+                          );
+
+                          await launchUrl(
+                            whatsappUri,
+                            mode: LaunchMode.externalApplication,
+                          );
+                        } catch (e) {
+                          if (mounted) {
+                            SnackBarUtils.showSnackBar(
+                              context,
+                              'Could not open WhatsApp',
+                              type: SnackBarType.other,
+                            );
+                          }
+                        }
+                      },
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.phone,
+                            size: 20,
+                            color: AppColors.accentOrange,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '03171292355',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppColors.background.withOpacity(0.9),
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios,
+                            size: 16,
+                            color: AppColors.accentOrange,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Quit app button
+              SizedBox(
+                width: double.infinity,
+                height: 40,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _checkVerificationStatus,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accentOrange,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.lightSeaGreen,
+                          ),
+                        )
+                      : const Text(
+                          'Check Status',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: AppColors.textWhite,
+                          ),
+                        ),
+                ),
               ),
             ],
           ),

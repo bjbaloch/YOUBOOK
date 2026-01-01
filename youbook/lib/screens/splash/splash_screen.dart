@@ -7,9 +7,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
-import '../auth/login_screen.dart';
-import '../auth/email_confirmation_screen.dart';
+import '../auth/login/login_screen.dart';
+import '../auth/email_confirmation_screen/email_confirmation_screen.dart';
 import '../passenger/home_shell.dart';
+import '../manager/manager_waiting_screen.dart';
+import '../manager/manager_company_details_screen.dart';
 import '../manager/manager_dashboard.dart';
 import '../driver/driver_home_screen.dart';
 
@@ -137,10 +139,20 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _navigateToNextScreen(AuthProvider authProvider) async {
     print('DEBUG: Starting _navigateToNextScreen');
 
-    Widget nextScreen;
+    // Check for stored manager screen preference
+    final prefs = await SharedPreferences.getInstance();
+    final lastManagerScreen = prefs.getString('last_manager_screen');
+
+    if (lastManagerScreen != null) {
+      print('DEBUG: Found stored manager screen: $lastManagerScreen');
+      // Clear the stored preference after reading
+      await prefs.remove('last_manager_screen');
+    }
+
+    Widget nextScreen = const LoginScreen(); // Default fallback
 
     // Check if there's pending email confirmation data
-    final prefs = await SharedPreferences.getInstance();
+    // prefs already obtained above
     final pendingEmail = prefs.getString('pending_email');
     final pendingRole = prefs.getString('pending_role');
 
@@ -152,7 +164,9 @@ class _SplashScreenState extends State<SplashScreen>
     print('DEBUG: supabaseUser exists: ${supabaseUser != null}');
     print('DEBUG: supabaseUser email: ${supabaseUser?.email}');
     print('DEBUG: emailConfirmedAt: ${supabaseUser?.emailConfirmedAt}');
-    print('DEBUG: authProvider.isAuthenticated: ${authProvider.isAuthenticated}');
+    print(
+      'DEBUG: authProvider.isAuthenticated: ${authProvider.isAuthenticated}',
+    );
     print('DEBUG: authProvider.user: ${authProvider.user}');
     print('DEBUG: authProvider.userRole: ${authProvider.userRole}');
 
@@ -165,7 +179,9 @@ class _SplashScreenState extends State<SplashScreen>
         print('DEBUG: Email not confirmed, showing EmailConfirmationScreen');
         // Email not confirmed yet, show confirmation screen
         final pendingCompanyName = prefs.getString('pending_company_name');
-        final pendingCredentialDetails = prefs.getString('pending_credential_details');
+        final pendingCredentialDetails = prefs.getString(
+          'pending_credential_details',
+        );
 
         nextScreen = EmailConfirmationScreen(
           email: pendingEmail,
@@ -174,45 +190,155 @@ class _SplashScreenState extends State<SplashScreen>
           credentialDetails: pendingCredentialDetails,
         );
       } else {
-        print('DEBUG: Email confirmed, clearing pending data and navigating normally');
+        print(
+          'DEBUG: Email confirmed, clearing pending data and navigating normally',
+        );
         // Email is confirmed, clear stored data and navigate normally
         await _clearPendingConfirmationData();
 
         // Navigate based on user role (now that profile should exist)
         if (authProvider.isAuthenticated) {
-          print('DEBUG: User authenticated, navigating based on role: ${authProvider.userRole}');
-          switch (authProvider.userRole) {
-            case AppConstants.roleManager:
-              nextScreen = const ManagerDashboard();
-              break;
-            case AppConstants.roleDriver:
-              nextScreen = const DriverHomeScreen();
-              break;
-            case AppConstants.rolePassenger:
-            default:
-              nextScreen = const HomeShell();
-              break;
+          print(
+            'DEBUG: User authenticated, navigating based on role: ${authProvider.userRole}',
+          );
+          try {
+            switch (authProvider.userRole) {
+          case AppConstants.roleManager:
+            print(
+              'DEBUG: User is manager, checking if application submitted...',
+            );
+            // For managers, check if they've submitted an application (not just approved)
+            final hasSubmittedApplication = await _checkIfManagerApplicationExists(supabaseUser!.id);
+
+            print(
+              'DEBUG: Manager has submitted application: $hasSubmittedApplication',
+            );
+
+            if (hasSubmittedApplication) {
+              // Check if application is approved
+              final authProvider = Provider.of<AuthProvider>(context, listen: false);
+              final isApproved = await authProvider.isManagerApplicationApproved();
+
+              // Determine valid screens based on current approval status
+              List<String> validScreens;
+              Widget defaultScreen;
+
+              if (isApproved) {
+                // If approved, valid screens are dashboard and waiting
+                validScreens = ['dashboard', 'waiting'];
+                defaultScreen = const ManagerDashboard();
+              } else {
+                // If not approved, only waiting screen is valid
+                validScreens = ['waiting'];
+                defaultScreen = const ManagerWaitingScreen();
+              }
+
+              // Check if we have a stored screen preference and it's valid for current state
+              if (lastManagerScreen != null && validScreens.contains(lastManagerScreen)) {
+                print('DEBUG: Using stored preference: $lastManagerScreen');
+
+                if (lastManagerScreen == 'dashboard') {
+                  nextScreen = const ManagerDashboard();
+                } else if (lastManagerScreen == 'waiting') {
+                  nextScreen = const ManagerWaitingScreen();
+                }
+              } else {
+                // No stored preference or invalid preference, use default for current status
+                print('DEBUG: Using default screen for current approval status: ${isApproved ? 'approved' : 'not approved'}');
+                nextScreen = defaultScreen;
+              }
+            } else {
+              print('DEBUG: Manager has not submitted application, going to ManagerCompanyDetailsScreen');
+              nextScreen = const ManagerCompanyDetailsScreen();
+            }
+            break;
+              case AppConstants.roleDriver:
+                nextScreen = const DriverHomeScreen();
+                break;
+              case AppConstants.rolePassenger:
+              default:
+                nextScreen = const HomeShell();
+                break;
+            }
+          } catch (e) {
+            print('DEBUG: Error during navigation, defaulting to login: $e');
+            nextScreen = const LoginScreen();
           }
         } else {
-          print('DEBUG: User not authenticated after confirmation, going to login');
+          print(
+            'DEBUG: User not authenticated after confirmation, going to login',
+          );
           // Profile still doesn't exist, go to login
           nextScreen = const LoginScreen();
         }
       }
     } else if (authProvider.isAuthenticated) {
-      print('DEBUG: No pending data but user authenticated, navigating based on role: ${authProvider.userRole}');
+      print(
+        'DEBUG: No pending data but user authenticated, navigating based on role: ${authProvider.userRole}',
+      );
       // Navigate based on user role
-      switch (authProvider.userRole) {
-        case AppConstants.roleManager:
-          nextScreen = const ManagerDashboard();
-          break;
-        case AppConstants.roleDriver:
-          nextScreen = const DriverHomeScreen();
-          break;
-        case AppConstants.rolePassenger:
-        default:
-          nextScreen = const HomeShell();
-          break;
+      try {
+        switch (authProvider.userRole) {
+          case AppConstants.roleManager:
+            print(
+              'DEBUG: User is manager, checking if application submitted...',
+            );
+            // For managers, check if they've submitted an application (not just approved)
+            final hasSubmittedApplication = await _checkIfManagerApplicationExists(supabaseUser!.id);
+
+            print(
+              'DEBUG: Manager has submitted application: $hasSubmittedApplication',
+            );
+
+            if (hasSubmittedApplication) {
+              // Check if application is approved
+              final authProvider = Provider.of<AuthProvider>(context, listen: false);
+              final isApproved = await authProvider.isManagerApplicationApproved();
+
+              // Determine valid screens based on current approval status
+              List<String> validScreens;
+              Widget defaultScreen;
+
+              if (isApproved) {
+                // If approved, valid screens are dashboard and waiting
+                validScreens = ['dashboard', 'waiting'];
+                defaultScreen = const ManagerDashboard();
+              } else {
+                // If not approved, only waiting screen is valid
+                validScreens = ['waiting'];
+                defaultScreen = const ManagerWaitingScreen();
+              }
+
+              // Check if we have a stored screen preference and it's valid for current state
+              if (lastManagerScreen != null && validScreens.contains(lastManagerScreen)) {
+                print('DEBUG: Using stored preference: $lastManagerScreen');
+
+                if (lastManagerScreen == 'dashboard') {
+                  nextScreen = const ManagerDashboard();
+                } else if (lastManagerScreen == 'waiting') {
+                  nextScreen = const ManagerWaitingScreen();
+                }
+              } else {
+                // No stored preference or invalid preference, use default for current status
+                print('DEBUG: Using default screen for current approval status: ${isApproved ? 'approved' : 'not approved'}');
+                nextScreen = defaultScreen;
+              }
+            } else {
+              print('DEBUG: Manager has not submitted application, going to ManagerCompanyDetailsScreen');
+              nextScreen = const ManagerCompanyDetailsScreen();
+            }
+            break;
+          case AppConstants.roleDriver:
+            nextScreen = const DriverHomeScreen();
+            break;
+          case AppConstants.rolePassenger:
+          default:
+            nextScreen = const HomeShell();
+            break;
+        }
+      } catch (e) {
+        print('DEBUG: Error during navigation, defaulting to login: $e');
+        nextScreen = const LoginScreen();
       }
     } else {
       print('DEBUG: User not authenticated, going to login screen');
@@ -231,6 +357,21 @@ class _SplashScreenState extends State<SplashScreen>
       print('DEBUG: Navigation completed');
     } else {
       print('DEBUG: Component not mounted, skipping navigation');
+    }
+  }
+
+  Future<bool> _checkIfManagerApplicationExists(String userId) async {
+    try {
+      final response = await Supabase.instance.client
+          .from('manager_applications')
+          .select('id')
+          .eq('user_id', userId)
+          .limit(1);
+
+      return response.isNotEmpty;
+    } catch (e) {
+      print('DEBUG: Error checking manager application existence: $e');
+      return false;
     }
   }
 
@@ -354,7 +495,7 @@ class _SplashScreenState extends State<SplashScreen>
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.white.withOpacity(0.25),
+                                      color: AppColors.textWhite.withOpacity(0.25),
                                       blurRadius: 6 + _logoGlowAnim.value,
                                       spreadRadius:
                                           1 + (_logoGlowAnim.value / 2),
@@ -554,10 +695,10 @@ class _RipplePainter extends CustomPainter {
       final t = r.controller.value;
       final radius = (size.longestSide * 0.28) * t;
       final fill = Paint()
-        ..color = Colors.white.withOpacity(0.08 * (1 - t))
+        ..color = AppColors.textWhite.withOpacity(0.08 * (1 - t))
         ..style = PaintingStyle.fill;
       final stroke = Paint()
-        ..color = Colors.white.withOpacity(0.25 * (1 - t))
+        ..color = AppColors.textWhite.withOpacity(0.25 * (1 - t))
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.0;
       canvas.drawCircle(r.position, radius, fill);

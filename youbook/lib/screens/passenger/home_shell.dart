@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/widgets/logout_dialog.dart';
 import 'home_screen.dart';
 import 'booking_screen.dart';
 import 'wallet_screen.dart';
@@ -40,28 +41,8 @@ class _HomeShellState extends State<HomeShell> {
           // Logout button
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () async {
-              final shouldLogout = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Logout'),
-                  content: const Text('Are you sure you want to logout?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('Logout'),
-                    ),
-                  ],
-                ),
-              );
-
-              if (shouldLogout ?? false) {
-                await authProvider.logout();
-              }
+            onPressed: () {
+              LogoutDialog.show(context);
             },
           ),
         ],

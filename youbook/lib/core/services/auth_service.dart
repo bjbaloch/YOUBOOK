@@ -34,7 +34,9 @@ class AuthService {
 
   // Signup new user
   // UPDATED: Uses metadata and relies on SQL Triggers
-  Future<UserModel?> signup({
+  // NOTE: With email confirmation enabled, this does NOT sign the user in.
+  // Authentication happens only after email confirmation via deep link.
+  Future<bool> signup({
     required String email,
     required String password,
     required String fullName,
@@ -72,19 +74,11 @@ class AuthService {
         throw Exception('Signup failed: No user returned from server.');
       }
 
-      final userId = authResponse.user!.id;
-
-      // 3. Return UserModel immediately
-      // We do NOT manually insert into 'profiles' or 'wallets' here.
-      // The Database Trigger handles that automatically to avoid race conditions.
-      return UserModel(
-        id: userId,
-        email: email,
-        fullName: fullName,
-        phoneNumber: phoneNumber,
-        avatarUrl: avatarUrl,
-        role: role,
-      );
+      // 3. Return success
+      // We do NOT sign the user in here. With email confirmation enabled,
+      // the user must confirm their email before they can be authenticated.
+      // The deep link handler will handle authentication after confirmation.
+      return true;
 
     } on AuthException catch (e) {
       // Capture specific Supabase errors (e.g. "User already registered")
@@ -124,12 +118,14 @@ class AuthService {
   }
 
   // Update user profile
-  Future<bool> updateProfile(UserModel user) async {
+  Future<bool> updateProfile(UserModel user, {String? companyName, String? credentialDetails}) async {
     try {
       final updateData = {
         'full_name': user.fullName,
         'phone_number': user.phoneNumber,
         'avatar_url': user.avatarUrl,
+        if (companyName != null) 'company_name': companyName,
+        if (credentialDetails != null) 'credential_details': credentialDetails,
       };
 
       final response = await http.put(
@@ -147,18 +143,36 @@ class AuthService {
   // Apply for manager role
   Future<bool> applyForManager(String companyName, String credentialDetails) async {
     try {
-      final applicationData = {
+      final user = supabase.auth.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Check if user already has a pending application
+      final existingApp = await supabase
+          .from('manager_applications')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'pending');
+
+      if (existingApp.isNotEmpty) {
+        throw Exception('You already have a pending application');
+      }
+
+      // Insert new application
+      final appData = {
+        'user_id': user.id,
         'company_name': companyName,
         'credential_details': credentialDetails,
       };
 
-      final response = await http.post(
-        Uri.parse('${AppConstants.apiBaseUrl}/profile/apply-manager'),
-        headers: _getAuthHeaders(),
-        body: json.encode(applicationData),
-      );
+      final response = await supabase
+          .from('manager_applications')
+          .insert(appData)
+          .select();
 
-      return response.statusCode == 200;
+      // Return true if insertion was successful (response contains inserted records)
+      return response != null && response.isNotEmpty;
     } catch (e) {
       rethrow;
     }
@@ -167,17 +181,32 @@ class AuthService {
   // Get manager application status
   Future<Map<String, dynamic>?> getManagerApplication() async {
     try {
-      final response = await http.get(
-        Uri.parse('${AppConstants.apiBaseUrl}/profile/manager-application'),
-        headers: _getAuthHeaders(),
-      );
+      final user = supabase.auth.currentUser;
+      if (user == null) return null;
 
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
+      final response = await supabase
+          .from('manager_applications')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', ascending: false)
+          .limit(1);
+
+      if (response.isNotEmpty) {
+        return response.first;
       }
-      return null;
+      return null; // No application found
     } catch (e) {
       rethrow;
+    }
+  }
+
+  // Check if manager application is approved
+  Future<bool> isManagerApplicationApproved() async {
+    try {
+      final application = await getManagerApplication();
+      return application != null && application['status'] == 'approved';
+    } catch (e) {
+      return false;
     }
   }
 

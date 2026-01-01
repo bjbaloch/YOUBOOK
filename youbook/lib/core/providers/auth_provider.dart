@@ -48,9 +48,11 @@ class AuthProvider with ChangeNotifier {
         print('DEBUG: AuthProvider validating stored session');
         final user = await _authService.getCurrentUserProfile();
         if (user != null) {
+          // For managers, we allow session restoration even if application is pending
+          // The splash screen will handle navigation to the appropriate screen
           _user = user;
           print(
-            'DEBUG: AuthProvider restored user from stored session: ${user.email}',
+            'DEBUG: AuthProvider restored user from stored session: ${user.email} (${user.role})',
           );
         } else {
           print('DEBUG: AuthProvider stored session invalid, logging out');
@@ -122,6 +124,7 @@ class AuthProvider with ChangeNotifier {
     try {
       final user = await _authService.login(email, password);
       if (user != null) {
+        // Manager applications table removed - allow all logins for now
         _user = user;
         await _saveSession(user);
         return true;
@@ -137,6 +140,8 @@ class AuthProvider with ChangeNotifier {
   }
 
   // Signup
+  // NOTE: With email confirmation enabled, this does NOT sign the user in.
+  // The user will be authenticated only after confirming their email via deep link.
   Future<bool> signup(
     String email,
     String password,
@@ -153,7 +158,7 @@ class AuthProvider with ChangeNotifier {
     Future.microtask(() => notifyListeners());
 
     try {
-      final user = await _authService.signup(
+      final success = await _authService.signup(
         email: email,
         password: password,
         fullName: fullName,
@@ -165,12 +170,9 @@ class AuthProvider with ChangeNotifier {
         credentialDetails: credentialDetails,
       );
 
-      if (user != null) {
-        _user = user;
-        await _saveSession(user);
-        return true;
-      }
-      return false;
+      // With email confirmation enabled, we do NOT sign the user in here.
+      // The deep link handler will authenticate the user after email confirmation.
+      return success;
     } catch (e) {
       _error = e.toString();
       return false;
@@ -204,16 +206,8 @@ class AuthProvider with ChangeNotifier {
     Future.microtask(() => notifyListeners());
 
     try {
-      final success = await _authService.applyForManager(
-        companyName,
-        credentialDetails,
-      );
-      if (success) {
-        // Refresh user profile to get updated status
-        await refreshProfile();
-        return true;
-      }
-      return false;
+      final success = await _authService.applyForManager(companyName, credentialDetails);
+      return success;
     } catch (e) {
       _error = e.toString();
       return false;
@@ -270,6 +264,17 @@ class AuthProvider with ChangeNotifier {
       );
     } catch (e) {
       debugPrint('Failed to save session: $e');
+    }
+  }
+
+  // Check if manager application is approved
+  Future<bool> isManagerApplicationApproved() async {
+    try {
+      final isApproved = await _authService.isManagerApplicationApproved();
+      return isApproved;
+    } catch (e) {
+      _error = e.toString();
+      return false;
     }
   }
 
