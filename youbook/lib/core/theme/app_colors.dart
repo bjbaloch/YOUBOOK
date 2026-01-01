@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppColors {
-  static const Color background = Color.fromARGB(255, 241, 221, 173);
+  static const Color background = Color.fromARGB(255, 246, 229, 191);
   static const Color lightSeaGreen = Color.fromARGB(255, 17, 123, 118);
   static const Color accentOrange = Color(0xFFFFA800);
   static const Color logoYellow = Color(0xFFFFFF00);
@@ -36,10 +36,15 @@ class AppColors {
 
   static const Color inputBorder = Color(0xFF000000);
   static const Color hint = Color(0x99000000);
+  static const Color green = Color.fromRGBO(76, 175, 80, 1);
 
   static const Color circleGreen = Color(0xFF12A21C);
   static const Color textOnCircle = Color(0xFFFFFFFF);
   static const Color transparent = Color.fromRGBO(0, 0, 0, 0);
+
+  static const Color darkBackground = Color(0xFF101214);
+  static const Color darkSurface = Color(0xFF1A1D1F);
+  static const Color greyShade100 = Color(0xFFF5F5F5);
 }
 
 /// App-wide theme controller + ThemeData using your color schema.
@@ -108,7 +113,6 @@ class AppTheme {
       ),
     ),
     snackBarTheme: const SnackBarThemeData(
-      backgroundColor: AppColors.lightSeaGreen,
       contentTextStyle: TextStyle(color: AppColors.textWhite),
     ),
     useMaterial3: false,
@@ -117,7 +121,7 @@ class AppTheme {
   /// Dark theme
   static final ThemeData dark = ThemeData(
     brightness: Brightness.dark,
-    scaffoldBackgroundColor: const Color(0xFF101214),
+    scaffoldBackgroundColor: AppColors.darkBackground,
     primaryColor: AppColors.lightSeaGreen,
     colorScheme: const ColorScheme(
       brightness: Brightness.dark,
@@ -127,9 +131,9 @@ class AppTheme {
       onSecondary: AppColors.textWhite,
       error: AppColors.red,
       onError: AppColors.textWhite,
-      background: Color(0xFF101214),
+      background: AppColors.darkBackground,
       onBackground: AppColors.textWhite,
-      surface: Color(0xFF1A1D1F),
+      surface: AppColors.darkSurface,
       onSurface: AppColors.textWhite,
     ),
     appBarTheme: const AppBarTheme(
@@ -151,7 +155,6 @@ class AppTheme {
       ),
     ),
     snackBarTheme: const SnackBarThemeData(
-      backgroundColor: AppColors.lightSeaGreen,
       contentTextStyle: TextStyle(color: AppColors.textWhite),
     ),
     useMaterial3: false,

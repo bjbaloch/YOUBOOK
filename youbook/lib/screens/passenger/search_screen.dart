@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/snackbar_utils.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key, required this.serviceType});
@@ -16,7 +18,9 @@ class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _fromController = TextEditingController();
   final TextEditingController _toController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
-  final TextEditingController _passengersController = TextEditingController(text: '1');
+  final TextEditingController _passengersController = TextEditingController(
+    text: '1',
+  );
 
   DateTime? _selectedDate;
 
@@ -48,16 +52,21 @@ class _SearchScreenState extends State<SearchScreen> {
   void _search() {
     if (!_formKey.currentState!.validate()) return;
 
-    if (widget.serviceType == AppConstants.serviceTransport && _selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a travel date')),
+    if (widget.serviceType == AppConstants.serviceTransport &&
+        _selectedDate == null) {
+      SnackBarUtils.showSnackBar(
+        context,
+        'Please select a travel date',
+        type: SnackBarType.other,
       );
       return;
     }
 
     // Navigate to search results (Placeholder - would integrate with search_results_screen.dart)
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Search functionality will be implemented')),
+    SnackBarUtils.showSnackBar(
+      context,
+      'Search functionality will be implemented',
+      type: SnackBarType.other,
     );
   }
 
@@ -66,14 +75,11 @@ class _SearchScreenState extends State<SearchScreen> {
     final title = widget.serviceType == AppConstants.serviceTransport
         ? 'Search Buses/Trains'
         : widget.serviceType == AppConstants.serviceAccommodation
-            ? 'Find Hotels'
-            : 'Find Rentals';
+        ? 'Find Hotels'
+        : 'Find Rentals';
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: Text(title), elevation: 0),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -87,7 +93,8 @@ class _SearchScreenState extends State<SearchScreen> {
               TextFormField(
                 controller: _fromController,
                 decoration: InputDecoration(
-                  labelText: widget.serviceType == AppConstants.serviceAccommodation
+                  labelText:
+                      widget.serviceType == AppConstants.serviceAccommodation
                       ? 'City'
                       : 'From Location',
                   prefixIcon: const Icon(Icons.location_on),
@@ -264,10 +271,7 @@ class _SearchScreenState extends State<SearchScreen> {
               if (widget.serviceType == AppConstants.serviceTransport) ...[
                 const Text(
                   'Quick Search',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
                 Wrap(
@@ -304,18 +308,17 @@ class _QuickSearchChip extends StatelessWidget {
         final parts = route.split(' → ');
         if (parts.length == 2) {
           // This would update the form fields
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Selected: $route')),
+          SnackBarUtils.showSnackBar(
+            context,
+            'Selected: $route',
+            type: SnackBarType.other,
           );
         }
       },
       borderRadius: BorderRadius.circular(20),
       child: Chip(
-        label: Text(
-          route,
-          style: const TextStyle(fontSize: 12),
-        ),
-        backgroundColor: Colors.grey.shade100,
+        label: Text(route, style: const TextStyle(fontSize: 12)),
+        backgroundColor: AppColors.greyShade100,
       ),
     );
   }
