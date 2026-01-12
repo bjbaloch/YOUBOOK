@@ -22,7 +22,7 @@
 --     avatar_url TEXT,
 --     phone_number TEXT,
 --     cnic TEXT,
---     role TEXT CHECK (role IN ('passenger', 'manager', 'driver')) DEFAULT 'passenger',
+--     role TEXT CHECK (role IN ('passenger', 'manager', 'driver', 'admin')) DEFAULT 'passenger',
 --     company_name TEXT,  -- For managers: company name
 --     credential_details TEXT,  -- For managers: JSON string of company details
 --     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL,
@@ -43,6 +43,16 @@
 --     UNIQUE(user_id)  -- One application per user
 -- );
 
+-- -- Wallets table for user balances
+-- CREATE TABLE IF NOT EXISTS public.wallets (
+--     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+--     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+--     balance DECIMAL(10,2) DEFAULT 0.00 NOT NULL,
+--     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL,
+--     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL,
+--     UNIQUE(user_id)
+-- );
+
 -- -- ==========================================
 -- -- 3. ROW LEVEL SECURITY (RLS) POLICIES
 -- -- ==========================================
@@ -50,24 +60,31 @@
 -- -- Enable RLS on all tables
 -- ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 -- ALTER TABLE public.manager_applications ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE public.wallets ENABLE ROW LEVEL SECURITY;
 
 -- -- Profiles Policies
+-- DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
 -- CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles
 --     FOR SELECT USING (true);
 
+-- DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
 -- CREATE POLICY "Users can insert their own profile" ON public.profiles
 --     FOR INSERT WITH CHECK (auth.uid() = id);
 
+-- DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 -- CREATE POLICY "Users can update own profile" ON public.profiles
 --     FOR UPDATE USING (auth.uid() = id);
 
 -- -- Manager Applications Policies
+-- DROP POLICY IF EXISTS "Users can view own applications" ON public.manager_applications;
 -- CREATE POLICY "Users can view own applications" ON public.manager_applications
 --     FOR SELECT USING (auth.uid() = user_id);
 
+-- DROP POLICY IF EXISTS "Users can create own applications" ON public.manager_applications;
 -- CREATE POLICY "Users can create own applications" ON public.manager_applications
 --     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+-- DROP POLICY IF EXISTS "Managers can view all applications" ON public.manager_applications;
 -- CREATE POLICY "Managers can view all applications" ON public.manager_applications
 --     FOR SELECT USING (
 --         EXISTS (
@@ -76,6 +93,7 @@
 --         )
 --     );
 
+-- DROP POLICY IF EXISTS "Managers can update application status" ON public.manager_applications;
 -- CREATE POLICY "Managers can update application status" ON public.manager_applications
 --     FOR UPDATE USING (
 --         EXISTS (
@@ -83,6 +101,19 @@
 --             WHERE id = auth.uid() AND role = 'manager'
 --         )
 --     );
+
+-- -- Wallets Policies
+-- DROP POLICY IF EXISTS "Users can view own wallet" ON public.wallets;
+-- CREATE POLICY "Users can view own wallet" ON public.wallets
+--     FOR SELECT USING (auth.uid() = user_id);
+
+-- DROP POLICY IF EXISTS "Users can insert own wallet" ON public.wallets;
+-- CREATE POLICY "Users can insert own wallet" ON public.wallets
+--     FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- DROP POLICY IF EXISTS "Users can update own wallet" ON public.wallets;
+-- CREATE POLICY "Users can update own wallet" ON public.wallets
+--     FOR UPDATE USING (auth.uid() = user_id);
 
 -- -- ==========================================
 -- -- 4. FUNCTIONS AND TRIGGERS
@@ -178,6 +209,11 @@
 --     BEFORE UPDATE ON public.manager_applications
 --     FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
 
+-- DROP TRIGGER IF EXISTS update_wallets_updated_at ON public.wallets;
+-- CREATE TRIGGER update_wallets_updated_at
+--     BEFORE UPDATE ON public.wallets
+--     FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
+
 -- -- Manager application approval trigger
 -- DROP TRIGGER IF EXISTS on_manager_application_status_change ON public.manager_applications;
 -- CREATE TRIGGER on_manager_application_status_change
@@ -197,6 +233,9 @@
 -- CREATE INDEX IF NOT EXISTS idx_manager_applications_user_id ON public.manager_applications(user_id);
 -- CREATE INDEX IF NOT EXISTS idx_manager_applications_status ON public.manager_applications(status);
 -- CREATE INDEX IF NOT EXISTS idx_manager_applications_created_at ON public.manager_applications(created_at);
+
+-- -- Wallets indexes
+-- CREATE INDEX IF NOT EXISTS idx_wallets_user_id ON public.wallets(user_id);
 
 -- -- -- ==========================================
 -- -- -- SETUP COMPLETE

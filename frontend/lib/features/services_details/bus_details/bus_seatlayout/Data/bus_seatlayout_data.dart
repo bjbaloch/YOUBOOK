@@ -1,0 +1,10 @@
+// data.dart
+
+class Seat {
+  final int number;
+  bool removed;
+
+  Seat({required this.number, this.removed = false});
+
+  Map<String, dynamic> toJson() => {'number': number, 'removed': removed};
+}

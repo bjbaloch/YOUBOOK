@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     # Supabase
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "https://blycroutezsjhduujaai.supabase.co")
     SUPABASE_ANON_KEY: str = os.getenv("SUPABASE_ANON_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJseWNyb3V0ZXpzamhkdXVqYWFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4NDA4NTMsImV4cCI6MjA3MTQxNjg1M30.qcUskhKy_UR-IqWaECfI3j7CbJ66xtLCSedg6CKVkfQ")
-    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "CHANGE_THIS_IN_PRODUCTION_ENVIRONMENT_VARIABLE")
+    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJseWNyb3V0ZXpzamhkdXVqYWFpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTg0MDg1MywiZXhwIjoyMDcxNDE2ODUzfQ.SInsq2HL6zAX4gZwA6U059RcV7m_G4mgasFNNhdAU9o")
 
     # Database (for local development)
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/youbook")
@@ -29,8 +29,8 @@ class Settings(BaseSettings):
         "http://localhost:8080",  # Vue dev server
         "http://127.0.0.1:8000",  # FastAPI local
         "http://localhost:8000",  # FastAPI local
-        "http://localhost:5000",  # Flutter web local
-        "http://127.0.0.1:5000", # Flutter web local
+        "http://localhost:5500",  # Flutter web local
+        "http://127.0.0.1:5500", # Flutter web local
 
         # Production origins (ADD YOUR ACTUAL DOMAINS HERE)
         # "https://yourapp.com",
@@ -46,6 +46,9 @@ class Settings(BaseSettings):
 
     # Location/Geocoding
     OPENCAGE_API_KEY: str = os.getenv("OPENCAGE_API_KEY", "")
+
+    # Mobile app deep link for admin confirmation
+    ADMIN_APP_DEEP_LINK: str = os.getenv("ADMIN_APP_DEEP_LINK", "youbookadmin://auth/confirm")
 
     class Config:
         env_file = ".env"

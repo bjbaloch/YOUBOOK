@@ -1,12 +1,13 @@
 from datetime import datetime, timedelta
-from typing import Optional, Union
+from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from supabase import Client
-from app.core.database import get_supabase
+from fastapi import HTTPException, status, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
 from app.core.config import settings
+from app.core.database import get_supabase
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -33,13 +34,33 @@ def get_password_hash(password: str) -> str:
 async def authenticate_user(email: str, password: str, supabase: Client):
     """Authenticate user with Supabase"""
     try:
+        print(f"AUTHENTICATE: Attempting login for {email}")
+
         # Sign in with Supabase Auth
         response = supabase.auth.sign_in_with_password({
             "email": email,
             "password": password
         })
-        return response
+
+        print(f"AUTHENTICATE: Supabase auth response - user: {response.user is not None}, session: {response.session is not None}")
+
+        # If authentication successful, get user profile data
+        if response.user and response.session:
+            print(f"AUTHENTICATE: Getting profile for user ID: {response.user.id}")
+            user_response = supabase.table('profiles').select('*').eq('email', email).execute()
+            print(f"AUTHENTICATE: Profile query result: {len(user_response.data) if user_response.data else 0} records")
+
+            if user_response.data:
+                user_data = user_response.data[0]
+                print(f"AUTHENTICATE: Found user profile - role: {user_data.get('role')}, email: {user_data.get('email')}")
+                return user_data  # Return user profile data
+            else:
+                print(f"AUTHENTICATE: No profile found for email {email}")
+        else:
+            print(f"AUTHENTICATE: Supabase auth failed")
+        return None
     except Exception as e:
+        print(f"AUTHENTICATE: Exception - {str(e)}")
         return None
 
 async def get_current_user(

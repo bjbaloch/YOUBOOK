@@ -1,0 +1,52 @@
+{
+  "id": "trip_001",
+  "routeName": "Islamabad to Lahore Express",
+  "fromLocation": "Islamabad",
+  "toLocation": "Lahore",
+  "departureTime": "08:30 AM",
+  "estimatedDuration": "4 hours",
+  "passengers": [
+    {
+      "id": "pass_001",
+      "name": "Ahmed Khan",
+      "seatNumber": "A1",
+      "phoneNumber": "+92-300-1234567",
+      "isCheckedIn": false,
+      "pendingSync": false
+    },
+    {
+      "id": "pass_002",
+      "name": "Fatima Ali",
+      "seatNumber": "A2",
+      "phoneNumber": "+92-301-2345678",
+      "isCheckedIn": true,
+      "checkInTime": "2024-01-12T08:15:00Z",
+      "pendingSync": false
+    },
+    {
+      "id": "pass_003",
+      "name": "Muhammad Saeed",
+      "seatNumber": "B1",
+      "phoneNumber": "+92-302-3456789",
+      "isCheckedIn": false,
+      "pendingSync": false
+    },
+    {
+      "id": "pass_004",
+      "name": "Ayesha Malik",
+      "seatNumber": "B2",
+      "phoneNumber": "+92-303-4567890",
+      "isCheckedIn": false,
+      "pendingSync": false
+    },
+    {
+      "id": "pass_005",
+      "name": "Hassan Raza",
+      "seatNumber": "C1",
+      "phoneNumber": "+92-304-5678901",
+      "isCheckedIn": true,
+      "checkInTime": "2024-01-12T08:20:00Z",
+      "pendingSync": false
+    }
+  ]
+}

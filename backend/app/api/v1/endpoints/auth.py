@@ -22,11 +22,14 @@ async def login(
     """
     user = await authenticate_user(form_data.username, form_data.password, supabase)
     if not user:
+        print(f"LOGIN FAILED: No user found for email {form_data.username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    print(f"LOGIN SUCCESS: User {user.get('email')} with role {user.get('role')} logged in")
 
     # Generate JWT token upon successful authentication
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -148,9 +151,44 @@ async def refresh_token(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
+@router.get("/me")
+async def get_current_user_profile(
+    current_user = Depends(get_current_user)
+):
+    """Get current authenticated user profile"""
+    return current_user
+
+
 @router.post("/logout")
 async def logout(
     supabase: Client = Depends(get_supabase)
 ):
     """Logout user (client-side token deletion is sufficient)"""
     return {"message": "Successfully logged out"}
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    email: str,
+    supabase: Client = Depends(get_supabase)
+):
+    """
+    Send password reset email to user.
+    """
+    try:
+        # Send password reset email
+        response = supabase.auth.reset_password_for_email(
+            email,
+            {
+                "redirect_to": f"{settings.FRONTEND_URL}/reset-password"  # Configure this URL
+            }
+        )
+
+        # Always return success for security (don't reveal if email exists)
+        return {"message": "If an account with this email exists, we've sent you a password reset link."}
+
+    except Exception as e:
+        # Log error but return success message for security
+        print(f"Forgot password error: {str(e)}")
+        # Always return success to prevent email enumeration attacks
+        return {"message": "If an account with this email exists, we've sent you a password reset link."}

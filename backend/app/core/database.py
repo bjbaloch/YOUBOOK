@@ -12,7 +12,7 @@ from app.core.config import settings
 
 # Supabase client for production
 supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
-# supabase_service: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+supabase_service: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
 # Dependency to get DB session (for local dev) - commented out
 # def get_db():
@@ -27,5 +27,5 @@ def get_supabase() -> Client:
     return supabase
 
 # Dependency to get Supabase service role client (for admin operations)
-# def get_supabase_service() -> Client:
-#     return supabase_service
+def get_supabase_service() -> Client:
+    return supabase_service
