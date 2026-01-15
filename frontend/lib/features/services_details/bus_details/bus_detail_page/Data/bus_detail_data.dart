@@ -7,16 +7,82 @@ class BusFormData {
   bool isSeatLayoutConfigured = false;
   String? selectedBusType;
 
-  final TextEditingController priceController = TextEditingController();
-  final TextEditingController applicationController = TextEditingController();
+  // Seat Layout Data
+  Map<String, dynamic>? seatLayoutData;
+
+  // Bus Information
+  final TextEditingController busNameController = TextEditingController();
+  final TextEditingController busNumberController = TextEditingController();
+  final TextEditingController busColorController = TextEditingController();
+
+  // Proprietor Information
+  final TextEditingController proprietorController = TextEditingController();
+  final TextEditingController generalManagerController =
+      TextEditingController();
+  final TextEditingController managerController = TextEditingController();
+  final TextEditingController secretaryController = TextEditingController();
+
+  // Route Information
+  final TextEditingController fromController = TextEditingController();
+  final TextEditingController toController = TextEditingController();
+
+  // Office/Terminal Information
+  final TextEditingController boardingOfficeController =
+      TextEditingController();
+  final TextEditingController arrivalOfficeController = TextEditingController();
+
+  // Schedule Details
   final TextEditingController departureController = TextEditingController();
   final TextEditingController arrivalController = TextEditingController();
 
+  // Seat & Pricing Details
+  final TextEditingController priceController = TextEditingController();
+  final TextEditingController applicationController = TextEditingController();
+
   void dispose() {
-    priceController.dispose();
-    applicationController.dispose();
+    busNameController.dispose();
+    busNumberController.dispose();
+    busColorController.dispose();
+    proprietorController.dispose();
+    generalManagerController.dispose();
+    managerController.dispose();
+    secretaryController.dispose();
+    fromController.dispose();
+    toController.dispose();
+    boardingOfficeController.dispose();
+    arrivalOfficeController.dispose();
     departureController.dispose();
     arrivalController.dispose();
+    priceController.dispose();
+    applicationController.dispose();
+  }
+
+  void setSeatLayoutData(Map<String, dynamic> layoutData) {
+    seatLayoutData = layoutData;
+    isSeatLayoutConfigured = true;
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'busName': busNameController.text.trim(),
+      'busNumber': busNumberController.text.trim(),
+      'busColor': busColorController.text.trim(),
+      'proprietor': proprietorController.text.trim(),
+      'generalManager': generalManagerController.text.trim(),
+      'manager': managerController.text.trim(),
+      'secretary': secretaryController.text.trim(),
+      'from': fromController.text.trim(),
+      'to': toController.text.trim(),
+      'boardingOffice': boardingOfficeController.text.trim(),
+      'arrivalOffice': arrivalOfficeController.text.trim(),
+      'departureTime': departureController.text.trim(),
+      'arrivalTime': arrivalController.text.trim(),
+      'pricePerSeat': priceController.text.trim(),
+      'applicationCharges': applicationController.text.trim(),
+      'isSeatLayoutConfigured': isSeatLayoutConfigured,
+      'seatLayoutData': seatLayoutData,
+      'type': 'transport',
+    };
   }
 }
 
@@ -24,7 +90,9 @@ class BusFormData {
 class CnicInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     final text = newValue.text.replaceAll('-', '');
     String newText = '';
 

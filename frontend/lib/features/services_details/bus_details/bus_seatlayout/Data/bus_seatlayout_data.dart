@@ -1,7 +1,7 @@
 // data.dart
 
 class Seat {
-  final int number;
+  int number;
   bool removed;
 
   Seat({required this.number, this.removed = false});

@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:youbook/features/booking/UI/booking_ui.dart';
+import 'package:provider/provider.dart';
 import 'package:youbook/features/profile/account/account_page/UI/account_page_ui.dart';
-import 'package:youbook/features/wallet_section/youbook_wallet/UI/wallet_ui.dart';
+import 'package:youbook/features/add_service/UI/add_service_ui.dart';
 import 'package:youbook/screens/manager/Notification/Notific_page/UI/manager_notifications_ui.dart';
+import 'package:youbook/screens/manager/services/manager_services_screen.dart';
+import 'package:youbook/screens/manager/schedules/manage_schedules_screen.dart';
+import 'package:youbook/screens/manager/drivers/manager_drivers_screen.dart';
+import 'package:youbook/screens/manager/manifests/passenger_manifests_screen.dart';
+import 'package:youbook/screens/manager/vehicles/track_vehicles_screen.dart';
 import 'package:youbook/screens/manager/side_bar/side_bar_ui.dart';
 import '../Logic/manager_home_logic.dart';
 import '../Data/manager_home_data.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/models/user.dart';
+import '../../../../core/services/profile_storage_service.dart';
 
-class ManagerHomeUI extends StatefulWidget {
+class ManagerHomeUI extends StatelessWidget {
   final ManagerHomeData data;
   final double appBarHeight;
 
@@ -20,10 +28,35 @@ class ManagerHomeUI extends StatefulWidget {
   });
 
   @override
-  State<ManagerHomeUI> createState() => _ManagerHomeUIState();
+  Widget build(BuildContext context) {
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        return _ManagerHomeContent(
+          data: data,
+          appBarHeight: appBarHeight,
+          currentUser: authProvider.user,
+        );
+      },
+    );
+  }
 }
 
-class _ManagerHomeUIState extends State<ManagerHomeUI>
+class _ManagerHomeContent extends StatefulWidget {
+  final ManagerHomeData data;
+  final double appBarHeight;
+  final UserModel? currentUser;
+
+  const _ManagerHomeContent({
+    required this.data,
+    this.appBarHeight = ManagerHomeData.defaultAppBarHeight,
+    this.currentUser,
+  });
+
+  @override
+  State<_ManagerHomeContent> createState() => _ManagerHomeUIState();
+}
+
+class _ManagerHomeUIState extends State<_ManagerHomeContent>
     with SingleTickerProviderStateMixin {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   String? _displayName = ManagerHomeData.defaultDisplayName;
@@ -52,6 +85,46 @@ class _ManagerHomeUIState extends State<ManagerHomeUI>
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _introCtrl, curve: Curves.easeOutCubic));
     _introCtrl.forward();
+    _loadUserProfile();
+  }
+
+  @override
+  void didUpdateWidget(_ManagerHomeContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload user profile if the current user changed
+    if (oldWidget.currentUser != widget.currentUser) {
+      _loadUserProfile();
+    }
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      // First try to get data from widget (authenticated user)
+      final currentUser = widget.currentUser;
+
+      if (currentUser != null) {
+        // Use authenticated user data
+        if (mounted) {
+          setState(() {
+            _displayName = currentUser.fullName ?? 'Manager';
+            _email = currentUser.email;
+            _avatarUrl = currentUser.avatarUrl;
+          });
+        }
+      } else {
+        // Fall back to local storage data
+        final accountData = await ProfileStorageService.getCombinedProfileData();
+        if (mounted) {
+          setState(() {
+            _displayName = accountData.displayName;
+            _email = accountData.email;
+            _avatarUrl = accountData.avatarUrl;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading user profile for manager dashboard: $e');
+    }
   }
 
   @override
@@ -79,18 +152,6 @@ class _ManagerHomeUIState extends State<ManagerHomeUI>
         centerTitle: true,
         title: _youBookTitle(),
         actions: [
-          IconButton(
-            icon: Icon(Icons.account_balance_wallet, color: cs.onPrimary, size: 27),
-            onPressed: () {
-              Navigator.push(
-                context,
-                ManagerHomeLogic.smoothTransition(
-                  const PlaceholderManagerScreen(title: 'Manager Wallet'),
-                ),
-              );
-            },
-            tooltip: 'Manager Wallet',
-          ),
           IconButton(
             icon: Icon(Icons.notifications_none, color: cs.onPrimary, size: 27),
             onPressed: () {
@@ -252,9 +313,9 @@ class _ManagerHomeUIState extends State<ManagerHomeUI>
     final cs = Theme.of(context).colorScheme;
     return FloatingActionButton(
       onPressed: () {
-        // TODO: Navigate to Add Service screen
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Add Service - Coming Soon!')),
+        Navigator.push(
+          context,
+          ManagerHomeLogic.smoothTransition(const ServicesPage()),
         );
       },
       backgroundColor: cs.primary,
@@ -297,20 +358,35 @@ class _ManagerHomeUIState extends State<ManagerHomeUI>
                     const SizedBox(height: 15),
                     _adsCarousel(),
                     const SizedBox(height: 15),
+                    // Row 1: Manage Services | Manage Schedules
                     Row(
                       children: [
                         Expanded(
                           child: _categoryTile(
                             title: "Manage Services",
-                            onTap: () {},
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                ManagerHomeLogic.smoothTransition(
+                                  const ManagerServicesScreen(),
+                                ),
+                              );
+                            },
                             icon: widget.data.busIcon,
                           ),
                         ),
-                        const SizedBox(width: 40),
+                        const SizedBox(width: 15),
                         Expanded(
                           child: _categoryTile(
                             title: "Manage Schedules",
-                            onTap: () {},
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                ManagerHomeLogic.smoothTransition(
+                                  const ManageSchedulesScreen(),
+                                ),
+                              );
+                            },
                             icon:
                                 widget.data.vanIcon ??
                                 Icon(
@@ -319,6 +395,77 @@ class _ManagerHomeUIState extends State<ManagerHomeUI>
                                   size: 40,
                                 ),
                           ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+                    // Row 2: Manager Drivers | Passenger Manifests
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _categoryTile(
+                            title: "Manager Drivers",
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                ManagerHomeLogic.smoothTransition(
+                                  const ManagerDriversScreen(),
+                                ),
+                              );
+                            },
+                            icon: Icon(
+                              Icons.person,
+                              color: cs.primary,
+                              size: 40,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 15),
+                        Expanded(
+                          child: _categoryTile(
+                            title: "Passenger Manifests",
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                ManagerHomeLogic.smoothTransition(
+                                  const PassengerManifestsScreen(),
+                                ),
+                              );
+                            },
+                            icon: Icon(
+                              Icons.list_alt,
+                              color: cs.primary,
+                              size: 40,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+                    // Row 3: Track Vehicles
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _categoryTile(
+                            title: "Track Vehicles",
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                ManagerHomeLogic.smoothTransition(
+                                  const TrackVehiclesScreen(),
+                                ),
+                              );
+                            },
+                            icon: Icon(
+                              Icons.location_on,
+                              color: cs.primary,
+                              size: 40,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 15),
+                        Expanded(
+                          child: SizedBox(), // Empty space for balance
                         ),
                       ],
                     ),

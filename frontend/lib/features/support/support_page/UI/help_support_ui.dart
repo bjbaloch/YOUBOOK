@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:youbook/screens/passenger/Home/Data/passenger_home_data.dart';
-import 'package:youbook/screens/passenger/Home/UI/passenger_home_ui.dart';
+import 'package:youbook/screens/manager/Home/Data/manager_home_data.dart';
+import 'package:youbook/screens/manager/Home/UI/manager_home_ui.dart';
 import 'package:youbook/features/support/support_page/Data/support_page_data.dart';
 import 'package:youbook/features/support/support_page/Logic/support_page_logic.dart';
 import 'package:youbook/features/support/terms_conditions/UI/terms_conditions_ui.dart';
@@ -109,7 +109,7 @@ class HelpSupportPage extends StatelessWidget {
             leading: IconButton(
               icon: Icon(Icons.arrow_back_ios_new_rounded, color: cs.onPrimary),
               onPressed: () =>
-                  Navigator.of(context).pushReplacement(logic.smoothRoute(const PassengerHomeUI(data: const PassengerHomeData()))),
+                  Navigator.of(context).pushReplacement(logic.smoothRoute(const ManagerHomeUI(data: const ManagerHomeData()))),
             ),
             centerTitle: true,
             title: Text(

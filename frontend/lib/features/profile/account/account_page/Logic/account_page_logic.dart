@@ -1,20 +1,35 @@
 import 'package:flutter/material.dart';
 import '../../../../../core/services/profile_storage_service.dart';
+import '../../../../../core/models/user.dart';
 import '../Data/account_page_data.dart';
 
 class AccountLogic {
-  // Load user profile data from storage
-  Future<AccountData> loadUser() async {
+  // Load user profile data - only show real data if authenticated user exists
+  Future<AccountData> loadUser(UserModel? user) async {
     try {
       // Simulate network delay for better UX
       await Future.delayed(const Duration(milliseconds: 300));
 
-      // Get combined profile data from storage
-      final profileData = await ProfileStorageService.getCombinedProfileData();
-      return profileData;
+      // Only return data if we have an authenticated user
+      if (user != null) {
+        return AccountData(
+          fullName: user.fullName,
+          email: user.email,
+          phone: user.phoneNumber,
+          cnic: user.cnic,
+          avatarUrl: user.avatarUrl,
+          address: user.address,
+          city: user.city,
+          stateProvince: user.stateProvince,
+          country: user.country,
+        );
+      }
+
+      // If no authenticated user, return empty data
+      return AccountData();
     } catch (e) {
       debugPrint('Error loading user profile: $e');
-      // Return default data on error
+      // Return empty data on error
       return AccountData();
     }
   }
@@ -76,7 +91,10 @@ class AccountLogic {
   }
 
   // Change password (mock implementation)
-  Future<bool> changePassword(String currentPassword, String newPassword) async {
+  Future<bool> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
     try {
       await Future.delayed(const Duration(seconds: 1));
       // Mock validation

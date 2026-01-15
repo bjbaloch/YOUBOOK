@@ -1,5 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/providers/auth_provider.dart';
+import '../../../features/add_service/UI/add_service_ui.dart';
+import 'service_model.dart';
+import 'service_edit_screen.dart';
 part 'manager_services_data.dart';
 part 'manager_services_ui.dart';
 
@@ -28,26 +34,7 @@ class _ManagerServicesScreenState extends State<ManagerServicesScreen>
     }
   }
 
-  Future<void> _addService(Service service) async {
-    setState(() {
-      _data.addService(service);
-    });
-    // TODO: Save to backend
-  }
 
-  Future<void> _updateService(Service service) async {
-    setState(() {
-      _data.updateService(service);
-    });
-    // TODO: Save to backend
-  }
-
-  Future<void> _deleteService(String serviceId) async {
-    setState(() {
-      _data.deleteService(serviceId);
-    });
-    // TODO: Save to backend
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,32 +44,8 @@ class _ManagerServicesScreenState extends State<ManagerServicesScreen>
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _showAddServiceDialog(context),
-            tooltip: 'Add Service',
-          ),
-        ],
       ),
       body: _buildServicesUI(this),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddServiceDialog(context),
-        tooltip: 'Add New Service',
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-
-  void _showAddServiceDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => _AddServiceDialog(
-        onAddService: (service) {
-          Navigator.of(context).pop();
-          _addService(service);
-        },
-      ),
     );
   }
 }

@@ -1,9 +1,12 @@
+import '../../../../core/services/api_service.dart';
+
 class WalletData {
   double balance;
   int selectedTab; // 0 = Transactions, 1 = Pending
   bool isLoading;
   List<Map<String, dynamic>> transactions;
   List<Map<String, dynamic>> pending;
+  final ApiService _apiService = ApiService();
 
   WalletData({
     this.balance = 0.0, // Start with zero balance
@@ -14,6 +17,39 @@ class WalletData {
   }) :
         transactions = transactions ?? [],
         pending = pending ?? [];
+
+  Future<void> loadWalletData() async {
+    isLoading = true;
+    try {
+      final walletData = await _apiService.getPassengerWallet();
+      balance = (walletData['balance'] ?? 0.0).toDouble();
+    } catch (e) {
+      balance = 0.0;
+      rethrow;
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  Future<void> loadTransactions() async {
+    try {
+      final transactionsData = await _apiService.getPassengerTransactions();
+      transactions = List<Map<String, dynamic>>.from(transactionsData);
+    } catch (e) {
+      transactions = [];
+      rethrow;
+    }
+  }
+
+  Future<void> loadPendingTransactions() async {
+    try {
+      final pendingData = await _apiService.getPassengerPendingTransactions();
+      pending = List<Map<String, dynamic>>.from(pendingData);
+    } catch (e) {
+      pending = [];
+      rethrow;
+    }
+  }
 
   // Get filtered transactions based on selected tab
   List<Map<String, dynamic>> getFilteredItems() {

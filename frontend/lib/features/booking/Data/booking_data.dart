@@ -1,15 +1,31 @@
 import '../../../core/models/booking.dart';
+import '../../../core/services/api_service.dart';
 
 class MyBookingData {
   bool isBusSelected;
   bool isPaidSelected;
   List<BookingModel> bookings;
+  bool isLoading = false;
+  final ApiService _apiService = ApiService();
 
   MyBookingData({
     this.isBusSelected = true,
     this.isPaidSelected = true,
     List<BookingModel>? bookings,
   }) : bookings = bookings ?? [];
+
+  Future<void> loadBookings() async {
+    isLoading = true;
+    try {
+      final bookingsData = await _apiService.getPassengerBookings();
+      bookings = bookingsData.map((json) => BookingModel.fromJson(json)).toList();
+    } catch (e) {
+      bookings = [];
+      rethrow;
+    } finally {
+      isLoading = false;
+    }
+  }
 
   // Get filtered bookings based on current selection
   List<BookingModel> getFilteredBookings() {

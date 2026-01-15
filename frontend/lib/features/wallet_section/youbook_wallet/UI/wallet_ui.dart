@@ -15,6 +15,28 @@ class WalletPage extends StatefulWidget {
 class _WalletPageState extends State<WalletPage> {
   final WalletLogic logic = WalletLogic();
 
+  @override
+  void initState() {
+    super.initState();
+    _initializeWallet();
+  }
+
+  Future<void> _initializeWallet() async {
+    try {
+      await logic.initializeWallet();
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      // Handle error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load wallet: $e')),
+        );
+      }
+    }
+  }
+
   Future<bool> _onWillPop() async {
     Navigator.pushReplacement(
       context,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:youbook/features/booking/UI/booking_ui.dart';
 import 'package:youbook/features/profile/account/account_page/UI/account_page_ui.dart';
 import 'package:youbook/features/support/support_page/UI/help_support_ui.dart';
@@ -7,10 +8,12 @@ import '../Home/UI/passenger_home_ui.dart';
 import '../Home/Data/passenger_home_data.dart';
 import '../Notification/Notific_page/UI/passenger_notifications_ui.dart';
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/providers/auth_provider.dart';
+import '../../../../../core/models/user.dart';
 import '../../../../../core/services/profile_storage_service.dart';
 import '../../../../../core/widgets/logout_dialog.dart';
 
-class AppSidebarDrawer extends StatefulWidget {
+class AppSidebarDrawer extends StatelessWidget {
   const AppSidebarDrawer({
     super.key,
     required this.isDarkMode,
@@ -27,10 +30,44 @@ class AppSidebarDrawer extends StatefulWidget {
   final bool showVersion;
 
   @override
-  State<AppSidebarDrawer> createState() => _AppSidebarDrawerState();
+  Widget build(BuildContext context) {
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        return _AppSidebarDrawerContent(
+          isDarkMode: isDarkMode,
+          onThemeChanged: onThemeChanged,
+          selectedIndex: selectedIndex,
+          onLogout: onLogout,
+          showVersion: showVersion,
+          currentUser: authProvider.user,
+        );
+      },
+    );
+  }
 }
 
-class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
+class _AppSidebarDrawerContent extends StatefulWidget {
+  const _AppSidebarDrawerContent({
+    required this.isDarkMode,
+    required this.onThemeChanged,
+    this.selectedIndex = 0,
+    this.onLogout,
+    this.showVersion = true,
+    this.currentUser,
+  });
+
+  final bool isDarkMode;
+  final ValueChanged<bool> onThemeChanged;
+  final int selectedIndex;
+  final VoidCallback? onLogout;
+  final bool showVersion;
+  final UserModel? currentUser;
+
+  @override
+  State<_AppSidebarDrawerContent> createState() => _AppSidebarDrawerContentState();
+}
+
+class _AppSidebarDrawerContentState extends State<_AppSidebarDrawerContent> {
   late bool _localIsDark;
   String? _displayName;
   String? _email;
@@ -43,15 +80,41 @@ class _AppSidebarDrawerState extends State<AppSidebarDrawer> {
     _loadUserProfile();
   }
 
+  @override
+  void didUpdateWidget(_AppSidebarDrawerContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload user profile if the current user changed
+    if (oldWidget.currentUser != widget.currentUser) {
+      _loadUserProfile();
+    }
+  }
+
+
+
   Future<void> _loadUserProfile() async {
     try {
-      final accountData = await ProfileStorageService.getCombinedProfileData();
-      if (mounted) {
-        setState(() {
-          _displayName = accountData.displayName;
-          _email = accountData.email;
-          _avatarUrl = accountData.avatarUrl;
-        });
+      // First try to get data from widget (authenticated user)
+      final currentUser = widget.currentUser;
+
+      if (currentUser != null) {
+        // Use authenticated user data
+        if (mounted) {
+          setState(() {
+            _displayName = currentUser.fullName ?? 'User';
+            _email = currentUser.email;
+            _avatarUrl = currentUser.avatarUrl;
+          });
+        }
+      } else {
+        // Fall back to local storage data
+        final accountData = await ProfileStorageService.getCombinedProfileData();
+        if (mounted) {
+          setState(() {
+            _displayName = accountData.displayName;
+            _email = accountData.email;
+            _avatarUrl = accountData.avatarUrl;
+          });
+        }
       }
     } catch (e) {
       debugPrint('Error loading user profile for sidebar: $e');

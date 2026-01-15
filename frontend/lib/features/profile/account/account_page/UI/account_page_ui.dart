@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../../core/providers/auth_provider.dart';
+import '../../../../../core/models/user.dart';
 import '../../../../../screens/passenger/Home/Data/passenger_home_data.dart';
 import '../../../../../screens/passenger/Home/UI/passenger_home_ui.dart';
+import '../../../../../screens/manager/Home/Data/manager_home_data.dart';
+import '../../../../../screens/manager/Home/UI/manager_home_ui.dart';
 import '../../account_page/Data/account_page_data.dart';
 import '../../account_page/Logic/account_page_logic.dart';
 import '../../edit_profile/UI/update_profile_ui.dart';
@@ -9,16 +15,30 @@ import '../../../change_phone_number/change_pn_page/UI/change_phone_dialog_ui.da
 import '../../../change_email/change_email_page/UI/change_email_dialog_ui.dart';
 import '../../../change_password/change_password_page/UI/change_password_page_ui.dart';
 import '../../../../../core/widgets/logout_dialog.dart';
-import '../../../../../core/services/role_based_navigation_service.dart';
 
-class AccountPageUI extends StatefulWidget {
+class AccountPageUI extends StatelessWidget {
   const AccountPageUI({super.key});
 
   @override
-  State<AccountPageUI> createState() => _AccountPageUIState();
+  Widget build(BuildContext context) {
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        return _AccountPageContent(currentUser: authProvider.user);
+      },
+    );
+  }
 }
 
-class _AccountPageUIState extends State<AccountPageUI> {
+class _AccountPageContent extends StatefulWidget {
+  final UserModel? currentUser;
+
+  const _AccountPageContent({this.currentUser});
+
+  @override
+  State<_AccountPageContent> createState() => _AccountPageUIState();
+}
+
+class _AccountPageUIState extends State<_AccountPageContent> {
   final AccountLogic _logic = AccountLogic();
   AccountData _data = AccountData();
   bool _loading = true;
@@ -31,7 +51,8 @@ class _AccountPageUIState extends State<AccountPageUI> {
 
   Future<void> _loadUser() async {
     setState(() => _loading = true);
-    final data = await _logic.loadUser();
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final data = await _logic.loadUser(authProvider.user);
     if (!mounted) return;
     setState(() {
       _data = data;
@@ -54,8 +75,44 @@ class _AccountPageUIState extends State<AccountPageUI> {
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new_rounded, color: cs.onPrimary),
           onPressed: () async {
-            final navigationService = RoleBasedNavigationService();
-            await navigationService.navigateToAppropriateDashboard(context, replace: true);
+            // Get current user's role from database
+            try {
+              final currentUser = Supabase.instance.client.auth.currentUser;
+              if (currentUser != null) {
+                final profileResponse = await Supabase.instance.client
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', currentUser.id)
+                    .single();
+
+                final role = profileResponse['role'] as String?;
+                Widget targetScreen;
+
+                if (role == 'manager') {
+                  targetScreen = const ManagerHomeUI(data: ManagerHomeData());
+                } else {
+                  targetScreen = const PassengerHomeUI(
+                    data: PassengerHomeData(),
+                  );
+                }
+
+                if (mounted) {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => targetScreen),
+                  );
+                }
+              }
+            } catch (e) {
+              // Fallback to passenger home on error
+              if (mounted) {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        const PassengerHomeUI(data: PassengerHomeData()),
+                  ),
+                );
+              }
+            }
           },
         ),
         centerTitle: true,
@@ -301,7 +358,10 @@ class _AccountPageUIState extends State<AccountPageUI> {
                       icon: Icons.logout_rounded,
                       label: 'Log out',
                       customColor: cs.error,
-                      onTap: () => LogoutDialog.show(context, currentScreen: 'passenger'),
+                      onTap: () => LogoutDialog.show(
+                        context,
+                        currentScreen: 'passenger',
+                      ),
                     ),
                   ],
                 ),

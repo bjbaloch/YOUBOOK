@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 
 class EditProfileData {
   String? fullName;
+  String? phone;
   String? cnic;
   String? address;
   String? city;
@@ -12,6 +13,7 @@ class EditProfileData {
 
   EditProfileData({
     this.fullName,
+    this.phone,
     this.cnic,
     this.address,
     this.city,
@@ -24,6 +26,7 @@ class EditProfileData {
   factory EditProfileData.fromAccountData(dynamic accountData) {
     return EditProfileData(
       fullName: accountData?.fullName,
+      phone: accountData?.phone,
       cnic: accountData?.cnic,
       address: accountData?.address,
       city: accountData?.city,

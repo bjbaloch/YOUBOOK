@@ -85,26 +85,9 @@ class _EmailConfirmationScreenState extends State<EmailConfirmationScreen> {
         type: SnackBarType.success,
       );
 
-      // Navigate to appropriate screen based on role
-      Widget nextScreen;
-      switch (widget.role) {
-        case AppConstants.roleManager:
-          print('DEBUG: Navigating to ManagerHomeShell');
-          nextScreen = const ManagerHomeUI(data: ManagerHomeData());
-          break;
-        case AppConstants.rolePassenger:
-        default:
-          print('DEBUG: Navigating to HomeShell');
-          nextScreen = const PassengerHomeUI(data: PassengerHomeData());
-          break;
-      }
-
-      print('DEBUG: Performing navigation to ${nextScreen.runtimeType}');
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => nextScreen),
-      );
-      print('DEBUG: Navigation completed');
+      // Navigate to appropriate screen based on role and application status
+      print('DEBUG: Using RoleBasedNavigationService for navigation');
+      RoleBasedNavigationService().navigateToAppropriateDashboard(context, replace: true);
     });
   }
 

@@ -1,6 +1,6 @@
 class AppConstants {
-  // API Constants
-  static const String apiBaseUrl = 'https://semimoderate-gerard-treasonable.ngrok-free.dev/api/v1';
+  // Supabase is now the primary backend - keeping API URL for potential fallbacks
+  // static const String apiBaseUrl = 'https://semimoderate-gerard-treasonable.ngrok-free.dev/api/v1';
 
   // Hive Box Names
   static const String offlineBox = 'offline_data';

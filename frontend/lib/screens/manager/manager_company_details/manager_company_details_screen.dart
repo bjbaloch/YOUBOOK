@@ -15,6 +15,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/snackbar_utils.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/file_upload_service.dart';
 import '../manager_waiting_screen/manager_waiting_screen.dart';
 
 part 'manager_company_details_data.dart';

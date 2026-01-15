@@ -16,6 +16,28 @@ class _MyBookingPageUIState extends State<MyBookingPageUI> {
   final MyBookingData _data = MyBookingData();
 
   @override
+  void initState() {
+    super.initState();
+    _loadBookings();
+  }
+
+  Future<void> _loadBookings() async {
+    try {
+      await _data.loadBookings();
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      // Handle error - could show snackbar
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load bookings: $e')),
+        );
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 

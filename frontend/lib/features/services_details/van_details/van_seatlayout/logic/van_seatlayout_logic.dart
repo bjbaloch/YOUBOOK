@@ -37,16 +37,20 @@ class VanSeatLayoutController {
     }
   }
 
-  /// Generate JSON of the layout
-  String getSeatLayoutJson() {
-    final layout = {
+  /// Generate layout data
+  Map<String, dynamic> getSeatLayoutData() {
+    return {
       'layoutType': 'Van-15-Seater',
       'driverSide': driverSide,
       'numberingMode': numberingMode,
       'totalSeats': seats.length,
       'seats': seats.map((s) => s.toJson()).toList(),
     };
-    return const JsonEncoder.withIndent('  ').convert(layout);
+  }
+
+  /// Generate JSON of the layout
+  String getSeatLayoutJson() {
+    return const JsonEncoder.withIndent('  ').convert(getSeatLayoutData());
   }
 
   /// Validate seat layout

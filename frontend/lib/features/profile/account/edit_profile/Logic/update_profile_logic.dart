@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import '../../../../../core/providers/auth_provider.dart';
+import '../../../../../core/services/auth_service.dart';
+import '../../../../../core/services/file_upload_service.dart';
+import '../../../../../core/services/profile_storage_service.dart';
+import '../../../../../core/models/user.dart';
+import '../../account_page/Data/account_page_data.dart';
 import '../Data/update_profile_data.dart';
 
 class EditProfileLogic {
@@ -11,6 +18,7 @@ class EditProfileLogic {
   // Initialize with existing account data
   void initializeWithAccountData(dynamic accountData) {
     data.fullName = accountData?.fullName;
+    data.phone = accountData?.phone;
     data.cnic = accountData?.cnic;
     data.address = accountData?.address;
     data.city = accountData?.city;
@@ -80,15 +88,76 @@ class EditProfileLogic {
   }
 
   // Update profile data
-  Future<bool> updateProfile() async {
+  Future<bool> updateProfile(BuildContext context) async {
     try {
-      // Simulate API call delay
-      await Future.delayed(const Duration(seconds: 1));
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final currentUser = authProvider.user;
 
-      // In a real app, this would make an API call with data.toMap()
-      // For now, just return success
-      debugPrint('Profile updated: ${data.toMap()}');
-      return true;
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+
+      String? avatarUrl = currentUser.avatarUrl;
+
+      // Upload avatar if a new image was picked
+      if (data.pickedImage != null) {
+        print('EditProfileLogic: Uploading avatar...');
+        try {
+          avatarUrl = await FileUploadService.uploadFile(
+            data.imageFile!,
+            'avatars',
+            folder: 'user_avatars',
+          );
+
+          if (avatarUrl == null) {
+            throw Exception('Upload returned null URL');
+          }
+          print('EditProfileLogic: Avatar uploaded successfully: $avatarUrl');
+        } catch (e) {
+          print('EditProfileLogic: Avatar upload failed: $e');
+          // Re-throw with the specific error message
+          throw Exception('Unable to upload profile picture: ${e.toString()}');
+        }
+      }
+
+      // Create updated user model with new data
+      final updatedUser = currentUser.copyWith(
+        fullName: data.fullName,
+        phoneNumber:
+            data.phone, // Note: this field doesn't exist in EditProfileData
+        avatarUrl: avatarUrl,
+        cnic: data.cnic,
+        address: data.address,
+        city: data.city,
+        stateProvince: data.stateProvince,
+        country: data.country,
+      );
+
+      // Update profile in database
+      final authService = AuthService();
+      final success = await authService.updateProfile(updatedUser);
+
+      if (success) {
+        // Update local storage
+        await ProfileStorageService.saveAccountData(
+          AccountData(
+            fullName: data.fullName,
+            email: currentUser.email,
+            phone: data.phone,
+            cnic: data.cnic,
+            avatarUrl: avatarUrl,
+            address: data.address,
+            city: data.city,
+            stateProvince: data.stateProvince,
+            country: data.country,
+          ),
+        );
+
+        // Update auth provider
+        await authProvider.updateProfile(updatedUser);
+      }
+
+      return success;
     } catch (e) {
       debugPrint('Profile update error: $e');
       return false;
@@ -115,10 +184,10 @@ class EditProfileLogic {
     required String? address,
   }) {
     return validateRequired(name) &&
-           validateRequired(country) &&
-           validateRequired(state) &&
-           validateRequired(city) &&
-           validateRequired(address) &&
-           (cnic == null || cnic.isEmpty || _cnicRegex.hasMatch(cnic));
+        validateRequired(country) &&
+        validateRequired(state) &&
+        validateRequired(city) &&
+        validateRequired(address) &&
+        (cnic == null || cnic.isEmpty || _cnicRegex.hasMatch(cnic));
   }
 }

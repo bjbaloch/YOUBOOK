@@ -249,11 +249,37 @@ class _ManagerCompanyDetailsScreenState
     });
 
     try {
+      // Show uploading files message
+      SnackBarUtils.showSnackBar(
+        context,
+        'Uploading files to secure storage...',
+        type: SnackBarType.other,
+      );
+
+      // Upload files to Supabase Storage
+      final filesToUpload = <String, File>{};
+      if (_cnicFrontPhoto != null) filesToUpload['cnicFrontPhoto'] = _cnicFrontPhoto!;
+      if (_cnicBackPhoto != null) filesToUpload['cnicBackPhoto'] = _cnicBackPhoto!;
+      if (_businessRegistrationDocument != null) filesToUpload['businessRegistrationDocument'] = _businessRegistrationDocument!;
+
+      final uploadedUrls = await FileUploadService.uploadMultipleFiles(
+        filesToUpload,
+        'application-files',
+        folder: 'manager-applications',
+      );
+
+      // Show upload completion
+      SnackBarUtils.showSnackBar(
+        context,
+        'Files uploaded successfully!',
+        type: SnackBarType.success,
+      );
+
       // Get auth provider
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final authService = AuthService();
 
-      // Compile company details as JSON string
+      // Compile company details as JSON string with uploaded file URLs
       final companyDetails = {
         'companyName': _companyNameController.text.trim(),
         'businessType': _selectedBusinessType,
@@ -271,9 +297,9 @@ class _ManagerCompanyDetailsScreenState
         'taxRegistered': _selectedTaxRegistered,
         'ownerName': _ownerNameController.text.trim(),
         'ownerCnic': _ownerCnicController.text.trim(),
-        'cnicFrontPhoto': _cnicFrontPhoto?.path,
-        'cnicBackPhoto': _cnicBackPhoto?.path,
-        'businessRegistrationDocument': _businessRegistrationDocument?.path,
+        'cnicFrontPhoto': uploadedUrls['cnicFrontPhoto'],
+        'cnicBackPhoto': uploadedUrls['cnicBackPhoto'],
+        'businessRegistrationDocument': uploadedUrls['businessRegistrationDocument'],
       };
 
       // Apply for manager role with company details

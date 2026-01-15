@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:youbook/features/booking/UI/booking_ui.dart';
 import 'package:youbook/features/wallet_section/youbook_wallet/UI/wallet_ui.dart';
 import 'package:youbook/features/profile/account/account_page/UI/account_page_ui.dart';
@@ -9,13 +10,15 @@ import 'package:youbook/features/van_service/Logic/van_service_logic.dart';
 import '../Logic/passenger_home_logic.dart';
 import '../Data/passenger_home_data.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/models/user.dart';
 import '../../../../core/services/profile_storage_service.dart';
 import '../../Notification/Notific_page/UI/passenger_notifications_ui.dart';
 import '../../../../core/widgets/ads_carousel_widget.dart';
 import '../../side_bar/side_bar_ui.dart';
 import '../../../../screens/auth/login/login_screen.dart';
 
-class PassengerHomeUI extends StatefulWidget {
+class PassengerHomeUI extends StatelessWidget {
   final PassengerHomeData data;
   final double appBarHeight;
 
@@ -26,10 +29,35 @@ class PassengerHomeUI extends StatefulWidget {
   });
 
   @override
-  State<PassengerHomeUI> createState() => _PassengerHomeUIState();
+  Widget build(BuildContext context) {
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        return _PassengerHomeContent(
+          data: data,
+          appBarHeight: appBarHeight,
+          currentUser: authProvider.user,
+        );
+      },
+    );
+  }
 }
 
-class _PassengerHomeUIState extends State<PassengerHomeUI>
+class _PassengerHomeContent extends StatefulWidget {
+  final PassengerHomeData data;
+  final double appBarHeight;
+  final UserModel? currentUser;
+
+  const _PassengerHomeContent({
+    required this.data,
+    this.appBarHeight = PassengerHomeData.defaultAppBarHeight,
+    this.currentUser,
+  });
+
+  @override
+  State<_PassengerHomeContent> createState() => _PassengerHomeUIState();
+}
+
+class _PassengerHomeUIState extends State<_PassengerHomeContent>
     with SingleTickerProviderStateMixin {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   String? _displayName = PassengerHomeData.defaultDisplayName;
@@ -61,15 +89,39 @@ class _PassengerHomeUIState extends State<PassengerHomeUI>
     _loadUserProfile();
   }
 
+  @override
+  void didUpdateWidget(_PassengerHomeContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload user profile if the current user changed
+    if (oldWidget.currentUser != widget.currentUser) {
+      _loadUserProfile();
+    }
+  }
+
   Future<void> _loadUserProfile() async {
     try {
-      final accountData = await ProfileStorageService.getCombinedProfileData();
-      if (mounted) {
-        setState(() {
-          _displayName = accountData.displayName;
-          _email = accountData.email;
-          _avatarUrl = accountData.avatarUrl;
-        });
+      // First try to get data from widget (authenticated user)
+      final currentUser = widget.currentUser;
+
+      if (currentUser != null) {
+        // Use authenticated user data
+        if (mounted) {
+          setState(() {
+            _displayName = currentUser.fullName ?? 'User';
+            _email = currentUser.email;
+            _avatarUrl = currentUser.avatarUrl;
+          });
+        }
+      } else {
+        // Fall back to local storage data
+        final accountData = await ProfileStorageService.getCombinedProfileData();
+        if (mounted) {
+          setState(() {
+            _displayName = accountData.displayName;
+            _email = accountData.email;
+            _avatarUrl = accountData.avatarUrl;
+          });
+        }
       }
     } catch (e) {
       debugPrint('Error loading user profile for dashboard: $e');

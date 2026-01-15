@@ -80,69 +80,32 @@ class ManagerWalletData {
   List<Transaction> transactions = [];
   WalletStats? stats;
   bool isProcessingPayment = false;
+  final ApiService _apiService = ApiService();
 
-  // Sample data for demonstration
   Future<void> loadWalletData() async {
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Load sample balance
-    balance = 125000.50;
-
-    // Calculate stats
-    _calculateStats();
+    try {
+      final walletData = await _apiService.getManagerWallet();
+      balance = (walletData['balance'] ?? 0.0).toDouble();
+    } catch (e) {
+      balance = 0.0;
+      rethrow;
+    } finally {
+      _calculateStats();
+    }
   }
 
   Future<void> loadTransactions() async {
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Sample transactions
-    transactions = [
-      Transaction(
-        id: '1',
-        type: TransactionType.deposit,
-        amount: 50000.0,
-        description: 'Initial deposit',
-        timestamp: DateTime.now().subtract(const Duration(days: 7)),
-        status: TransactionStatus.completed,
-      ),
-      Transaction(
-        id: '2',
-        type: TransactionType.payment,
-        amount: 2500.0,
-        description: 'Service fee - Islamabad to Lahore',
-        timestamp: DateTime.now().subtract(const Duration(days: 3)),
-        status: TransactionStatus.completed,
-      ),
-      Transaction(
-        id: '3',
-        type: TransactionType.payment,
-        amount: 1800.0,
-        description: 'Service fee - Rawalpindi to Islamabad',
-        timestamp: DateTime.now().subtract(const Duration(days: 2)),
-        status: TransactionStatus.completed,
-      ),
-      Transaction(
-        id: '4',
-        type: TransactionType.deposit,
-        amount: 25000.0,
-        description: 'Monthly revenue',
-        timestamp: DateTime.now().subtract(const Duration(days: 1)),
-        status: TransactionStatus.completed,
-      ),
-      Transaction(
-        id: '5',
-        type: TransactionType.withdrawal,
-        amount: 10000.0,
-        description: 'Office expenses',
-        timestamp: DateTime.now().subtract(const Duration(hours: 12)),
-        status: TransactionStatus.completed,
-      ),
-    ];
-
-    // Sort by timestamp (newest first)
-    transactions.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    try {
+      final transactionsData = await _apiService.getManagerTransactions();
+      transactions = transactionsData.map((json) => Transaction.fromJson(json)).toList();
+      // Sort by timestamp (newest first)
+      transactions.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    } catch (e) {
+      transactions = [];
+      rethrow;
+    } finally {
+      _calculateStats();
+    }
   }
 
   void addTransaction(Transaction transaction) {

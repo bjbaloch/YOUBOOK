@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/services/api_service.dart';
 part 'manager_wallet_data.dart';
 part 'manager_wallet_ui.dart';
 
@@ -168,6 +169,10 @@ class _ManagerWalletScreenState extends State<ManagerWalletScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.onPrimary),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: const Text('Manager Wallet'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,

@@ -19,13 +19,22 @@ class _SeatLayoutConfigPageState extends State<SeatLayoutConfigPage> {
 
     void updateUI() => setState(() {});
 
-    Widget _numberControl(int value, VoidCallback dec, VoidCallback inc,
-        {bool enabled = true}) {
+    Widget _numberControl(
+      int value,
+      VoidCallback dec,
+      VoidCallback inc, {
+      bool enabled = true,
+    }) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            onPressed: enabled ? () { dec(); updateUI(); } : null,
+            onPressed: enabled
+                ? () {
+                    dec();
+                    updateUI();
+                  }
+                : null,
             icon: Icon(Icons.remove_circle_outline, color: cs.primary),
           ),
           Container(
@@ -41,36 +50,89 @@ class _SeatLayoutConfigPageState extends State<SeatLayoutConfigPage> {
             ),
           ),
           IconButton(
-            onPressed: enabled ? () { inc(); updateUI(); } : null,
+            onPressed: enabled
+                ? () {
+                    inc();
+                    updateUI();
+                  }
+                : null,
             icon: Icon(Icons.add_circle_outline, color: cs.primary),
           ),
         ],
       );
     }
 
+    void _showManualNumberDialog(int seatIndex) {
+      final seat = logic.seats[seatIndex];
+      final controller = TextEditingController(
+        text: seat.number == 0 ? '' : seat.number.toString(),
+      );
+      bool showError = false;
+
+      showDialog(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+          builder: (context, setStateDialog) => AlertDialog(
+            title: const Text('Set Seat Number'),
+            content: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                hintText: 'Enter seat number',
+                errorText: showError ? 'Please enter a valid number' : null,
+              ),
+              autofocus: true,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final number = int.tryParse(controller.text.trim());
+                  if (number == null || number <= 0) {
+                    setStateDialog(() => showError = true);
+                    return;
+                  }
+                  setState(() => seat.number = number);
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Set Number'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     Widget buildSeatTile(int index) {
       final seat = logic.seats[index];
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 2),
         child: Stack(
           alignment: Alignment.topRight,
           children: [
             GestureDetector(
-              onTap: () => logic.toggleSeatRemoved(index, updateUI),
+              onTap: logic.numberingMode == 'Manual'
+                  ? () => _showManualNumberDialog(index)
+                  : () => logic.toggleSeatRemoved(index, updateUI),
+              onLongPress: () => logic.toggleSeatRemoved(index, updateUI),
               child: Container(
-                width: 56,
-                height: 44,
+                width: 40,
+                height: 32,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: seat.removed ? cs.surfaceVariant : cs.surface,
                   border: Border.all(
                     color: seat.removed ? cs.outlineVariant : cs.primary,
                   ),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   seat.number.toString(),
                   style: TextStyle(
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: seat.removed
                         ? cs.onSurface.withOpacity(0.5)
@@ -80,20 +142,20 @@ class _SeatLayoutConfigPageState extends State<SeatLayoutConfigPage> {
               ),
             ),
             Positioned(
-              right: 0,
-              top: 0,
+              right: -2,
+              top: -2,
               child: InkWell(
                 onTap: () => logic.removeSingleSeat(index, updateUI),
                 child: Container(
-                  width: 20,
-                  height: 20,
+                  width: 16,
+                  height: 16,
                   decoration: const BoxDecoration(
                     color: AppColors.error,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.close,
-                    size: 12,
+                    size: 10,
                     color: AppColors.textWhite,
                   ),
                 ),
@@ -108,7 +170,8 @@ class _SeatLayoutConfigPageState extends State<SeatLayoutConfigPage> {
       final List<Widget> rowWidgets = [];
       int seatIndex = 0;
       for (int r = 0; r < logic.rows; r++) {
-        final bool isLastRow = (logic.useLastRowOverride && r == logic.rows - 1);
+        final bool isLastRow =
+            (logic.useLastRowOverride && r == logic.rows - 1);
         final int currentCols = isLastRow && logic.lastRowColumns > 0
             ? logic.lastRowColumns
             : logic.columns;
@@ -153,14 +216,19 @@ class _SeatLayoutConfigPageState extends State<SeatLayoutConfigPage> {
         ),
       );
 
-      return Column(crossAxisAlignment: CrossAxisAlignment.center, children: rowWidgets);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: rowWidgets,
+      );
     }
 
     void showSeatPreviewPopup() {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           contentPadding: const EdgeInsets.all(16),
           content: SingleChildScrollView(child: buildSeatGridPreview()),
         ),
@@ -193,7 +261,9 @@ class _SeatLayoutConfigPageState extends State<SeatLayoutConfigPage> {
               // Top config card
               Card(
                 color: cs.surface,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Column(
@@ -209,18 +279,36 @@ class _SeatLayoutConfigPageState extends State<SeatLayoutConfigPage> {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          Text('Numbering:', style: TextStyle(color: cs.onSurface)),
+                          Text(
+                            'Numbering:',
+                            style: TextStyle(color: cs.onSurface),
+                          ),
                           const SizedBox(width: 8),
                           DropdownButton<String>(
                             value: logic.numberingMode,
                             underline: const SizedBox(),
                             dropdownColor: cs.surface,
                             items: const [
-                              DropdownMenuItem(value: 'Auto', child: Text('Auto Numbering')),
-                              DropdownMenuItem(value: 'Manual', child: Text('Manual Numbering')),
+                              DropdownMenuItem(
+                                value: 'Auto',
+                                child: Text('Auto Numbering'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Manual',
+                                child: Text('Manual Numbering'),
+                              ),
                             ],
                             onChanged: (v) {
-                              setState(() => logic.numberingMode = v ?? 'Auto');
+                              setState(() {
+                                logic.numberingMode = v ?? 'Auto';
+                                // Reset seat numbers to 0 when switching to Manual mode
+                                if (logic.numberingMode == 'Manual' &&
+                                    logic.seats.isNotEmpty) {
+                                  for (var seat in logic.seats) {
+                                    seat.number = 0;
+                                  }
+                                }
+                              });
                             },
                           ),
                         ],
@@ -230,21 +318,35 @@ class _SeatLayoutConfigPageState extends State<SeatLayoutConfigPage> {
                         children: [
                           Text('Rows:', style: TextStyle(color: cs.onSurface)),
                           const SizedBox(width: 8),
-                          _numberControl(logic.rows, () => logic.decRows(updateUI), () => logic.incRows(updateUI)),
+                          _numberControl(
+                            logic.rows,
+                            () => logic.decRows(updateUI),
+                            () => logic.incRows(updateUI),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Text('Columns:', style: TextStyle(color: cs.onSurface)),
+                          Text(
+                            'Columns:',
+                            style: TextStyle(color: cs.onSurface),
+                          ),
                           const SizedBox(width: 8),
-                          _numberControl(logic.columns, () => logic.decColumns(updateUI), () => logic.incColumns(updateUI)),
+                          _numberControl(
+                            logic.columns,
+                            () => logic.decColumns(updateUI),
+                            () => logic.incColumns(updateUI),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Text('Last row:', style: TextStyle(color: cs.onSurface)),
+                          Text(
+                            'Last row:',
+                            style: TextStyle(color: cs.onSurface),
+                          ),
                           const SizedBox(width: 8),
                           _numberControl(
                             logic.lastRowColumns,
@@ -257,9 +359,14 @@ class _SeatLayoutConfigPageState extends State<SeatLayoutConfigPage> {
                             value: logic.useLastRowOverride,
                             onChanged: (v) => setState(() {
                               logic.useLastRowOverride = v ?? false;
-                              if (!logic.useLastRowOverride) logic.lastRowColumns = 0;
-                              if (logic.useLastRowOverride && logic.lastRowColumns == 0) {
-                                logic.lastRowColumns = logic.columns.clamp(0, 5);
+                              if (!logic.useLastRowOverride)
+                                logic.lastRowColumns = 0;
+                              if (logic.useLastRowOverride &&
+                                  logic.lastRowColumns == 0) {
+                                logic.lastRowColumns = logic.columns.clamp(
+                                  0,
+                                  5,
+                                );
                               }
                             }),
                           ),
@@ -268,12 +375,18 @@ class _SeatLayoutConfigPageState extends State<SeatLayoutConfigPage> {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Text('Driver seat:', style: TextStyle(color: cs.onSurface)),
+                          Text(
+                            'Driver seat:',
+                            style: TextStyle(color: cs.onSurface),
+                          ),
                           const SizedBox(width: 12),
                           Container(
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: cs.outlineVariant, width: 1),
+                              border: Border.all(
+                                color: cs.outlineVariant,
+                                width: 1,
+                              ),
                             ),
                             padding: const EdgeInsets.symmetric(horizontal: 8),
                             child: DropdownButton<String>(
@@ -282,20 +395,31 @@ class _SeatLayoutConfigPageState extends State<SeatLayoutConfigPage> {
                               underline: const SizedBox(),
                               dropdownColor: cs.surface,
                               items: const [
-                                DropdownMenuItem(value: 'Right', child: Text('Right')),
-                                DropdownMenuItem(value: 'Left', child: Text('Left')),
+                                DropdownMenuItem(
+                                  value: 'Right',
+                                  child: Text('Right'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Left',
+                                  child: Text('Left'),
+                                ),
                               ],
-                              onChanged: (v) => setState(() => logic.driverSide = v ?? 'Right'),
+                              onChanged: (v) => setState(
+                                () => logic.driverSide = v ?? 'Right',
+                              ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
                       ElevatedButton(
-                        onPressed: () => logic.createSeatPlan(context, updateUI),
+                        onPressed: () =>
+                            logic.createSeatPlan(context, updateUI),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.accentOrange,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                         child: const Text('Create Seat Plan'),
                       ),
@@ -307,7 +431,9 @@ class _SeatLayoutConfigPageState extends State<SeatLayoutConfigPage> {
               // Seat grid preview
               Card(
                 color: cs.surface,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 elevation: 1,
                 child: Padding(
                   padding: const EdgeInsets.all(12),
@@ -317,9 +443,17 @@ class _SeatLayoutConfigPageState extends State<SeatLayoutConfigPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Seat Grid Preview', style: TextStyle(fontWeight: FontWeight.bold, color: cs.onSurface)),
+                          Text(
+                            'Seat Grid Preview',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: cs.onSurface,
+                            ),
+                          ),
                           TextButton(
-                            onPressed: logic.seats.isNotEmpty ? showSeatPreviewPopup : null,
+                            onPressed: logic.seats.isNotEmpty
+                                ? showSeatPreviewPopup
+                                : null,
                             child: const Text('Preview'),
                           ),
                         ],
@@ -337,16 +471,24 @@ class _SeatLayoutConfigPageState extends State<SeatLayoutConfigPage> {
                                 ElevatedButton(
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppColors.error,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
                                   ),
-                                  onPressed: logic.seats.isNotEmpty ? () => logic.deleteAllSeats(updateUI) : null,
+                                  onPressed: logic.seats.isNotEmpty
+                                      ? () => logic.deleteAllSeats(updateUI)
+                                      : null,
                                   child: const Text('Delete All'),
                                 ),
                                 const SizedBox(width: 12),
                                 ElevatedButton(
-                                  onPressed: logic.seats.isNotEmpty ? () => logic.saveSeatLayout(context) : null,
+                                  onPressed: logic.seats.isNotEmpty
+                                      ? () => logic.saveSeatLayout(context)
+                                      : null,
                                   style: ElevatedButton.styleFrom(
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
                                   ),
                                   child: const Text('Save seat layout'),
                                 ),

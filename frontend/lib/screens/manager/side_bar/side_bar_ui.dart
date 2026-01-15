@@ -157,12 +157,11 @@ class _ManagerSidebarDrawerState extends State<ManagerSidebarDrawer> {
               CircleAvatar(
                 radius: 30,
                 backgroundColor: cs.onPrimary,
-                backgroundImage:
-                    (_avatarUrl != null && _avatarUrl!.isNotEmpty)
+                backgroundImage: (_avatarUrl != null && _avatarUrl!.isNotEmpty)
                     ? NetworkImage(_avatarUrl!)
                     : null,
                 child: (_avatarUrl == null || _avatarUrl!.isEmpty)
-                    ? Icon(Icons.business_center, color: cs.primary, size: 40)
+                    ? Icon(Icons.person, color: cs.primary, size: 40)
                     : null,
               ),
               const SizedBox(width: 10),
@@ -259,9 +258,7 @@ class _ManagerSidebarDrawerState extends State<ManagerSidebarDrawer> {
                           _navItem(
                             icon: Icons.home_rounded,
                             label: 'Dashboard',
-                            page: ManagerHomeUI(
-                              data: const ManagerHomeData(),
-                            ),
+                            page: ManagerHomeUI(data: const ManagerHomeData()),
                           ),
                           _navItem(
                             icon: Icons.business_rounded,
@@ -271,22 +268,30 @@ class _ManagerSidebarDrawerState extends State<ManagerSidebarDrawer> {
                           _navItem(
                             icon: Icons.schedule_rounded,
                             label: 'Manage Schedules',
-                            page: const PlaceholderManagerScreen(title: 'Manage Schedules'),
+                            page: const PlaceholderManagerScreen(
+                              title: 'Manage Schedules',
+                            ),
                           ),
                           _navItem(
                             icon: Icons.people_rounded,
                             label: 'Manage Drivers',
-                            page: const PlaceholderManagerScreen(title: 'Manage Drivers'),
+                            page: const PlaceholderManagerScreen(
+                              title: 'Manage Drivers',
+                            ),
                           ),
                           _navItem(
                             icon: Icons.list_alt_rounded,
                             label: 'Passenger Manifests',
-                            page: const PlaceholderManagerScreen(title: 'Passenger Manifests'),
+                            page: const PlaceholderManagerScreen(
+                              title: 'Passenger Manifests',
+                            ),
                           ),
                           _navItem(
                             icon: Icons.location_on_rounded,
                             label: 'Track Vehicles',
-                            page: const PlaceholderManagerScreen(title: 'Track Vehicles'),
+                            page: const PlaceholderManagerScreen(
+                              title: 'Track Vehicles',
+                            ),
                           ),
                           _navItem(
                             icon: Icons.account_balance_wallet_rounded,
@@ -321,10 +326,7 @@ class _ManagerSidebarDrawerState extends State<ManagerSidebarDrawer> {
                       child: InkWell(
                         borderRadius: BorderRadius.circular(12),
                         onTap: () {
-                          LogoutDialog.show(
-                            context,
-                            currentScreen: 'manager',
-                          );
+                          LogoutDialog.show(context, currentScreen: 'manager');
                         },
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
@@ -372,10 +374,7 @@ class PlaceholderManagerScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        backgroundColor: cs.primary,
-      ),
+      appBar: AppBar(title: Text(title), backgroundColor: cs.primary),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

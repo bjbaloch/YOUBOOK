@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/services.dart';
+import '../services/notification_service.dart';
 import '../models/models.dart';
-import 'auth_provider.dart';
 
 class NotificationProvider with ChangeNotifier {
   List<NotificationModel> _notifications = [];
@@ -79,9 +78,12 @@ class NotificationProvider with ChangeNotifier {
           createdAt: createdAt,
         );
 
-        _notifications.insert(0, notification);
-        _unreadCount = unreadNotificationsCount;
-        notifyListeners();
+        // Add notification and show push notification
+        addNotification(notification);
+        NotificationService.showNotification(
+          title: notification.title ?? 'New Notification',
+          body: notification.message ?? '',
+        );
       }
     }
   }

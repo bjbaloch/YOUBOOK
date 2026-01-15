@@ -133,8 +133,32 @@ class RealtimeChatService {
 
   // Start conversation updates
   void _startConversationUpdates(String userId) {
-    // This would be replaced with actual real-time subscriptions
-    // For now, we'll use periodic updates
+    // Listen for real-time message updates
+    _supabase
+      .from('chat_messages')
+      .stream(primaryKey: ['id'])
+      .listen((List<Map<String, dynamic>> data) {
+        // Handle new messages
+        for (final messageJson in data) {
+          final message = ChatMessage.fromJson(messageJson);
+          _messageController.add(message);
+        }
+        _updateUnreadMessagesCount(userId);
+      });
+
+    // Listen for conversation updates
+    _supabase
+      .from('chat_conversations')
+      .stream(primaryKey: ['id'])
+      .listen((List<Map<String, dynamic>> data) {
+        // Handle conversation updates
+        for (final conversationJson in data) {
+          final conversation = ChatConversation.fromJson(conversationJson);
+          _conversationController.add(conversation);
+        }
+      });
+
+    // Periodic updates as fallback
     Timer.periodic(const Duration(seconds: 30), (_) {
       _fetchConversations(userId);
       _updateUnreadMessagesCount(userId);

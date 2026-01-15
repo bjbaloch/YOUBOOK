@@ -1,0 +1,22 @@
+-- -- Replace the function with debug version
+-- CREATE OR REPLACE FUNCTION public.handle_new_user()
+-- RETURNS TRIGGER AS $$
+-- DECLARE
+--     user_role_val user_role := 'passenger'::user_role;
+-- BEGIN
+--     -- Debug logging
+--     RAISE NOTICE 'Trigger fired for user ID: %', new.id;
+--     RAISE NOTICE 'User email: %', new.email;
+--     RAISE NOTICE 'Raw metadata: %', new.raw_user_meta_data;
+    
+--     -- Test basic insert first
+--     INSERT INTO public.profiles (id, email, full_name, role)
+--     VALUES (new.id, new.email, 'Debug Test', 'passenger'::user_role);
+    
+--     RAISE NOTICE 'Basic insert successful';
+--     RETURN new;
+-- EXCEPTION WHEN OTHERS THEN
+--     RAISE NOTICE 'Insert failed with error: %', SQLERRM;
+--     RETURN new;
+-- END;
+-- $$ LANGUAGE plpgsql SECURITY DEFINER;

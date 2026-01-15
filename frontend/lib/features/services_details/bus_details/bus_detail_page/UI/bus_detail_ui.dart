@@ -2,10 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:youbook/core/theme/app_colors.dart';
+import 'package:youbook/core/services/api_service.dart';
 import 'package:youbook/features/services_details/bus_details/bus_detail_page/Data/bus_detail_data.dart';
 import 'package:youbook/features/services_details/bus_details/bus_detail_page/Logic/bus_detail_logic.dart';
+import 'package:youbook/features/services_details/bus_details/bus_seatlayout/UI/bus_seatlayout_ui.dart';
 import 'package:youbook/features/services_details/service_confirmation/service_confirm_page/UI/service_confirm_ui.dart';
-
 
 // ---------- SCREEN ----------
 class AddBusDetailsScreen extends StatefulWidget {
@@ -41,6 +42,10 @@ class _AddBusDetailsScreenState extends State<AddBusDetailsScreen> {
     super.dispose();
   }
 
+
+
+
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -74,6 +79,7 @@ class _AddBusDetailsScreenState extends State<AddBusDetailsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _BusInformationSection(
+                    data: data,
                     selectedBusType: data.selectedBusType,
                     onBusTypeChanged: (value) {
                       setState(() {
@@ -82,10 +88,9 @@ class _AddBusDetailsScreenState extends State<AddBusDetailsScreen> {
                     },
                     formKey: _formKey,
                   ),
-                  _DriverInformationSection(formKey: _formKey),
-                  _ProprietorInformationSection(formKey: _formKey),
-                  _RouteInformationSection(formKey: _formKey),
-                  _OfficeTerminalSection(formKey: _formKey),
+                  _ProprietorInformationSection(data: data, formKey: _formKey),
+                  _RouteInformationSection(data: data, formKey: _formKey),
+                  _OfficeTerminalSection(data: data, formKey: _formKey),
                   _ScheduleDetailsSection(
                     departureController: data.departureController,
                     arrivalController: data.arrivalController,
@@ -94,6 +99,7 @@ class _AddBusDetailsScreenState extends State<AddBusDetailsScreen> {
                     formKey: _formKey,
                   ),
                   _SeatLayoutSection(
+                    data: data,
                     priceController: data.priceController,
                     applicationController: data.applicationController,
                     isSeatLayoutConfigured: data.isSeatLayoutConfigured,
@@ -133,7 +139,7 @@ class _AddBusDetailsScreenState extends State<AddBusDetailsScreen> {
                 );
                 return;
               }
-              showServiceConfirmationDialog(context);
+              showServiceConfirmationDialog(context, formData: data.toJson());
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.accentOrange,
@@ -331,11 +337,13 @@ Widget _sectionContainer({required List<Widget> children}) {
 /// ---------- Sections ----------
 
 class _BusInformationSection extends StatelessWidget {
+  final BusFormData data;
   final String? selectedBusType;
   final ValueChanged<String?> onBusTypeChanged;
   final GlobalKey<FormState> formKey;
 
   const _BusInformationSection({
+    required this.data,
     required this.selectedBusType,
     required this.onBusTypeChanged,
     required this.formKey,
@@ -354,18 +362,21 @@ class _BusInformationSection extends StatelessWidget {
           labelEn: 'Bus Name',
           labelUr: 'بس نام',
           isRequired: true,
+          controller: data.busNameController,
           formKey: formKey,
         ),
         CustomInputField(
           labelEn: 'Bus Number',
           labelUr: 'بس نمبر',
           isRequired: true,
+          controller: data.busNumberController,
           formKey: formKey,
         ),
         CustomInputField(
           labelEn: 'Bus Color',
           labelUr: 'بس رنگ',
           isRequired: true,
+          controller: data.busColorController,
           formKey: formKey,
         ),
         const SizedBox(height: 6),
@@ -374,77 +385,12 @@ class _BusInformationSection extends StatelessWidget {
   }
 }
 
-class _DriverInformationSection extends StatelessWidget {
-  final GlobalKey<FormState> formKey;
 
-  const _DriverInformationSection({required this.formKey});
-
-  @override
-  Widget build(BuildContext context) {
-    return _sectionContainer(
-      children: [
-        const SectionHeader(
-          titleEn: 'Driver Information',
-          titleUr: 'ڈرائیور کی معلومات',
-          isRequired: true,
-        ),
-        CustomInputField(
-          labelEn: 'Driver Name',
-          labelUr: 'ڈرائیور نام',
-          isRequired: true,
-          formKey: formKey,
-        ),
-        CustomInputField(
-          labelEn: 'Driving Experience',
-          labelUr: 'ڈرائیونگ تجربہ',
-          isRequired: true,
-          formKey: formKey,
-        ),
-        CustomInputField(
-          labelEn: 'Phone Number',
-          labelUr: 'فون نمبر',
-          isRequired: true,
-          keyboardType: TextInputType.phone,
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(11),
-          ],
-          customValidator: (value) {
-            if (value == null || value.isEmpty)
-              return 'Enter the Driver Phone Number';
-            if (!value.startsWith('03'))
-              return 'Phone number must start with 03';
-            if (value.length != 11)
-              return 'Phone number must be exactly 11 digits';
-            return null;
-          },
-          formKey: formKey,
-        ),
-        CustomInputField(
-          labelEn: 'CNIC',
-          labelUr: 'قومی شناختی کارڈ نمبر',
-          isRequired: true,
-          keyboardType: TextInputType.number,
-          inputFormatters: [
-            CnicInputFormatter(),
-            LengthLimitingTextInputFormatter(15),
-          ],
-          customValidator: (value) {
-            if (value == null || value.isEmpty) return 'Enter the Driver CNIC';
-            if (!RegExp(r'^\d{5}-\d{7}-\d{1}$').hasMatch(value))
-              return 'Invalid CNIC format (e.g., XXXXX-XXXXXXX-X)';
-            return null;
-          },
-          formKey: formKey,
-        ),
-      ],
-    );
-  }
-}
 
 class _ProprietorInformationSection extends StatelessWidget {
+  final BusFormData data;
   final GlobalKey<FormState> formKey;
-  const _ProprietorInformationSection({required this.formKey});
+  const _ProprietorInformationSection({required this.data, required this.formKey});
 
   @override
   Widget build(BuildContext context) {
@@ -459,24 +405,28 @@ class _ProprietorInformationSection extends StatelessWidget {
           labelEn: 'Proprietor',
           labelUr: 'مالک',
           isRequired: true,
+          controller: data.proprietorController,
           formKey: formKey,
         ),
         CustomInputField(
           labelEn: 'General Manager',
           labelUr: 'جنرل منیجر',
           isRequired: true,
+          controller: data.generalManagerController,
           formKey: formKey,
         ),
         CustomInputField(
           labelEn: 'Manager',
           labelUr: 'منیجر',
           isRequired: true,
+          controller: data.managerController,
           formKey: formKey,
         ),
         CustomInputField(
           labelEn: 'Secretary',
           labelUr: 'سیکرٹری',
           isRequired: true,
+          controller: data.secretaryController,
           formKey: formKey,
         ),
       ],
@@ -485,8 +435,9 @@ class _ProprietorInformationSection extends StatelessWidget {
 }
 
 class _RouteInformationSection extends StatelessWidget {
+  final BusFormData data;
   final GlobalKey<FormState> formKey;
-  const _RouteInformationSection({required this.formKey});
+  const _RouteInformationSection({required this.data, required this.formKey});
 
   @override
   Widget build(BuildContext context) {
@@ -501,12 +452,14 @@ class _RouteInformationSection extends StatelessWidget {
           labelEn: 'From',
           labelUr: 'سے',
           isRequired: true,
+          controller: data.fromController,
           formKey: formKey,
         ),
         CustomInputField(
           labelEn: 'To',
           labelUr: 'تک',
           isRequired: true,
+          controller: data.toController,
           formKey: formKey,
         ),
       ],
@@ -515,8 +468,9 @@ class _RouteInformationSection extends StatelessWidget {
 }
 
 class _OfficeTerminalSection extends StatelessWidget {
+  final BusFormData data;
   final GlobalKey<FormState> formKey;
-  const _OfficeTerminalSection({required this.formKey});
+  const _OfficeTerminalSection({required this.data, required this.formKey});
 
   @override
   Widget build(BuildContext context) {
@@ -531,12 +485,14 @@ class _OfficeTerminalSection extends StatelessWidget {
           labelEn: 'Boarding Office/Terminal',
           labelUr: 'سوار ہونے کا دفتر/اڈا',
           isRequired: true,
+          controller: data.boardingOfficeController,
           formKey: formKey,
         ),
         CustomInputField(
           labelEn: 'Arrival Office/Terminal',
           labelUr: 'منزل پر اترنے کا دفتر/اڈا',
           isRequired: true,
+          controller: data.arrivalOfficeController,
           formKey: formKey,
         ),
       ],
@@ -573,7 +529,7 @@ class _ScheduleDetailsSection extends StatelessWidget {
           controller: departureController,
           readOnly: true,
           onTap: () => onPickDateTime(departureController),
-          suffixIcon: const Icon(Icons.calendar_today),
+          suffixIcon: const Icon(Icons.calendar_month_rounded),
           formKey: formKey,
         ),
         CustomInputField(
@@ -583,7 +539,7 @@ class _ScheduleDetailsSection extends StatelessWidget {
           controller: arrivalController,
           readOnly: true,
           onTap: () => onPickDateTime(arrivalController),
-          suffixIcon: const Icon(Icons.calendar_today),
+          suffixIcon: const Icon(Icons.calendar_month_rounded),
           formKey: formKey,
         ),
       ],
@@ -595,10 +551,12 @@ class _OperationalControlsSection extends StatefulWidget {
   const _OperationalControlsSection();
 
   @override
-  State<_OperationalControlsSection> createState() => _OperationalControlsSectionState();
+  State<_OperationalControlsSection> createState() =>
+      _OperationalControlsSectionState();
 }
 
-class _OperationalControlsSectionState extends State<_OperationalControlsSection> {
+class _OperationalControlsSectionState
+    extends State<_OperationalControlsSection> {
   bool _isExpanded = false;
 
   final TextEditingController _instructionsController = TextEditingController(
@@ -621,7 +579,11 @@ class _OperationalControlsSectionState extends State<_OperationalControlsSection
   Widget build(BuildContext context) {
     return _sectionContainer(
       children: [
-        const SectionHeader(titleEn: 'Operational Controls', titleUr: 'عملی کنٹرولز', isRequired: true),
+        const SectionHeader(
+          titleEn: 'Operational Controls',
+          titleUr: 'عملی کنٹرولز',
+          isRequired: true,
+        ),
         GestureDetector(
           onTap: () => setState(() => _isExpanded = !_isExpanded),
           child: Container(
@@ -629,14 +591,27 @@ class _OperationalControlsSectionState extends State<_OperationalControlsSection
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.25)),
+              border: Border.all(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withOpacity(0.25),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Instructions for Passengers (ہدایات براۓ مسافر)', style: TextStyle(fontSize: 14)),
-                Icon(_isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                const Text(
+                  'Instructions for Passengers (ہدایات براۓ مسافر)',
+                  style: TextStyle(fontSize: 14),
+                ),
+                Icon(
+                  _isExpanded
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withOpacity(0.7),
+                ),
               ],
             ),
           ),
@@ -647,12 +622,28 @@ class _OperationalControlsSectionState extends State<_OperationalControlsSection
             child: TextFormField(
               controller: _instructionsController,
               maxLines: null,
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 14,
+              ),
               decoration: InputDecoration(
                 filled: true,
                 fillColor: Theme.of(context).colorScheme.surface,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.25))),
-                focusedBorder: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(10)), borderSide: BorderSide(color: AppColors.accentOrange, width: 2)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withOpacity(0.25),
+                  ),
+                ),
+                focusedBorder: const OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                  borderSide: BorderSide(
+                    color: AppColors.accentOrange,
+                    width: 2,
+                  ),
+                ),
                 contentPadding: const EdgeInsets.all(12),
               ),
             ),
@@ -663,6 +654,7 @@ class _OperationalControlsSectionState extends State<_OperationalControlsSection
 }
 
 class _SeatLayoutSection extends StatelessWidget {
+  final BusFormData data;
   final TextEditingController priceController;
   final TextEditingController applicationController;
   final bool isSeatLayoutConfigured;
@@ -670,6 +662,7 @@ class _SeatLayoutSection extends StatelessWidget {
   final GlobalKey<FormState> formKey;
 
   const _SeatLayoutSection({
+    required this.data,
     required this.priceController,
     required this.applicationController,
     required this.isSeatLayoutConfigured,
@@ -679,6 +672,8 @@ class _SeatLayoutSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return _sectionContainer(
       children: [
         const SectionHeader(
@@ -692,7 +687,9 @@ class _SeatLayoutSection extends StatelessWidget {
           isRequired: true,
           controller: priceController,
           keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+          ],
           formKey: formKey,
         ),
         CustomInputField(
@@ -702,10 +699,65 @@ class _SeatLayoutSection extends StatelessWidget {
           readOnly: true,
           formKey: formKey,
         ),
-        CheckboxListTile(
-          title: const Text('Seat layout configured'),
-          value: isSeatLayoutConfigured,
-          onChanged: (value) => onSeatLayoutConfigured(value ?? false),
+        const SizedBox(height: 12),
+        InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SeatLayoutConfigPage()),
+            ).then((result) {
+              if (result != null && result is Map<String, dynamic>) {
+                data.setSeatLayoutData(result);
+                onSeatLayoutConfigured(true);
+              }
+            });
+          },
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: cs.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: cs.outline.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isSeatLayoutConfigured ? Icons.check_circle : Icons.event_seat,
+                  color: isSeatLayoutConfigured ? Colors.green : cs.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'View Seat Layout',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: cs.onSurface,
+                        ),
+                      ),
+                      Text(
+                        isSeatLayoutConfigured
+                            ? 'Seat layout configured'
+                            : 'Tap to configure seating layout',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurface.withOpacity(0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: cs.onSurface.withOpacity(0.6),
+                ),
+              ],
+            ),
+          ),
         ),
       ],
     );
@@ -716,10 +768,7 @@ class _DisclaimerSection extends StatefulWidget {
   final bool isAgreed;
   final ValueChanged<bool?> onChanged;
 
-  const _DisclaimerSection({
-    required this.isAgreed,
-    required this.onChanged,
-  });
+  const _DisclaimerSection({required this.isAgreed, required this.onChanged});
 
   @override
   State<_DisclaimerSection> createState() => _DisclaimerSectionState();
@@ -737,7 +786,9 @@ class _DisclaimerSectionState extends State<_DisclaimerSection> {
         ),
         CheckboxListTile(
           title: const Text('I agree to the terms and conditions'),
-          subtitle: const Text('I have read and accepted all terms and conditions of the service.'),
+          subtitle: const Text(
+            'I have read and accepted all terms and conditions of the service.',
+          ),
           value: widget.isAgreed,
           onChanged: widget.onChanged,
           controlAffinity: ListTileControlAffinity.leading,

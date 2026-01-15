@@ -1,0 +1,72 @@
+-- -- ==========================================
+-- -- YOUBOOK Services Management
+-- -- Production-ready service management tables
+-- -- ==========================================
+-- -- Tables: services
+-- -- Features: Transport, accommodation, rental services with manager ownership
+-- -- ==========================================
+
+-- --  ==========================================
+--  1. SERVICES TABLE
+--  ==========================================
+
+--  Services table (transport, accommodation, rental) - Extended for van/bus details
+-- -- CREATE TABLE IF NOT EXISTS public.services (
+-- --     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+-- --     name TEXT NOT NULL,  -- Vehicle name (vanName/busName)
+-- --     description TEXT,
+-- --     type service_type NOT NULL,
+-- --     status service_status DEFAULT 'active'::service_status NOT NULL,
+-- --     manager_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+-- --     base_price DECIMAL(10,2) DEFAULT 0.00,  -- pricePerSeat
+-- --     capacity INTEGER,
+-- --     route_name TEXT,  -- Combined from/to route
+-- --     features JSONB DEFAULT '[]'::jsonb,  -- Array of service features
+-- --     is_active BOOLEAN DEFAULT true NOT NULL,
+-- --     commission_rate DECIMAL(5,2) DEFAULT 0.00,  -- Platform commission percentage
+-- --
+-- --     -- Van/Bus specific fields
+-- --     vehicle_number TEXT,  -- vanNumber/busNumber
+-- --     vehicle_color TEXT,  -- vanColor/busColor
+-- --     driver_name TEXT,  -- driverName
+-- --     driving_experience TEXT,  -- drivingExperience
+-- --     driver_phone TEXT,  -- driverPhone
+-- --     driver_cnic TEXT,  -- driverCnic
+-- --     proprietor TEXT,  -- proprietor
+-- --     general_manager TEXT,  -- generalManager
+-- --     manager TEXT,  -- manager
+-- --     secretary TEXT,  -- secretary
+-- --     from_location TEXT,  -- from
+-- --     to_location TEXT,  -- to
+-- --     boarding_office TEXT,  -- boardingOffice
+-- --     arrival_office TEXT,  -- arrivalOffice
+-- --     departure_time TEXT,  -- departureTime
+-- --     arrival_time TEXT,  -- arrivalTime
+-- --     application_charges DECIMAL(10,2) DEFAULT 0.00,  -- applicationCharges
+-- --     seat_layout JSONB,  -- seatLayoutData
+-- --     is_seat_layout_configured BOOLEAN DEFAULT false,  -- isSeatLayoutConfigured
+-- --
+-- --     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL,
+-- --     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL
+-- -- );
+
+--  Add indexes for performance
+-- -- CREATE INDEX IF NOT EXISTS idx_services_manager_id ON public.services(manager_id);
+-- -- CREATE INDEX IF NOT EXISTS idx_services_type ON public.services(type);
+-- -- CREATE INDEX IF NOT EXISTS idx_services_is_active ON public.services(is_active);
+-- -- CREATE INDEX IF NOT EXISTS idx_services_created_at ON public.services(created_at);
+
+--  ==========================================
+--  2. UPDATE TIMESTAMP TRIGGER
+--  ==========================================
+
+--  Update timestamp trigger for services
+-- -- DROP TRIGGER IF EXISTS update_services_updated_at ON public.services;
+-- -- CREATE TRIGGER update_services_updated_at
+-- --     BEFORE UPDATE ON public.services
+-- --     FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
+
+-- -- ==========================================
+-- -- Services Setup Complete
+-- -- ==========================================
+-- -- Next: Run 03_routes.sql to create route management tables

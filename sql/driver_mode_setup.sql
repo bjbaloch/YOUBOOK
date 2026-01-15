@@ -1,0 +1,148 @@
+-- -- ==========================================
+-- -- YOUBOOK Driver Mode Setup
+-- -- Run this file to set up the Driver Mode database schema
+-- -- ==========================================
+
+-- -- 1. First, run this to update the driver_status enum
+-- DO $$ BEGIN
+--     -- Drop existing enum if it exists
+--     DROP TYPE IF EXISTS driver_status CASCADE;
+
+--     -- Create the correct driver status enum
+--     CREATE TYPE driver_status AS ENUM ('Idle', 'Assigned', 'On Trip');
+-- EXCEPTION
+--     WHEN duplicate_object THEN null;
+-- END $$;
+
+-- -- 2. Drop existing tables if they exist
+-- DROP TABLE IF EXISTS public.vehicle_locations CASCADE;
+-- DROP TABLE IF EXISTS public.schedules CASCADE;
+-- DROP TABLE IF EXISTS public.drivers CASCADE;
+
+-- -- 3. Create drivers table
+-- CREATE TABLE public.drivers (
+--     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+--     company_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+--     auth_user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+--     email TEXT NOT NULL,
+--     name TEXT NOT NULL,
+--     license_number TEXT UNIQUE NOT NULL,
+--     phone TEXT NOT NULL,
+--     photo_url TEXT,
+--     current_status driver_status DEFAULT 'Idle'::driver_status NOT NULL,
+--     last_active_at TIMESTAMP WITH TIME ZONE,
+--     total_trips INTEGER DEFAULT 0,
+--     rating DECIMAL(3,2) DEFAULT 0.00,
+--     rating_count INTEGER DEFAULT 0,
+--     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL,
+--     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL,
+--     UNIQUE(auth_user_id),
+--     UNIQUE(email)
+-- );
+
+-- -- 4. Create schedules table with assigned_driver_id
+-- CREATE TABLE public.schedules (
+--     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+--     vehicle_id UUID REFERENCES public.vehicles(id) ON DELETE CASCADE NOT NULL,
+--     route_id UUID REFERENCES public.routes(id) ON DELETE CASCADE NOT NULL,
+--     assigned_driver_id UUID REFERENCES public.drivers(id) ON DELETE SET NULL,
+--     service_id UUID REFERENCES public.services(id) ON DELETE SET NULL,
+--     departure_time TIMESTAMP WITH TIME ZONE NOT NULL,
+--     arrival_time TIMESTAMP WITH TIME ZONE NOT NULL,
+--     travel_date DATE NOT NULL,
+--     available_seats INTEGER,
+--     total_seats INTEGER NOT NULL,
+--     base_fare DECIMAL(8,2) NOT NULL,
+--     dynamic_pricing JSONB DEFAULT '{"enabled": false, "multiplier": 1.0}'::jsonb,
+--     status schedule_status DEFAULT 'scheduled'::schedule_status NOT NULL,
+--     boarding_points JSONB DEFAULT '[]'::jsonb,
+--     notes TEXT,
+--     is_active BOOLEAN DEFAULT true NOT NULL,
+--     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL,
+--     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL
+-- );
+
+-- -- 5. Create GPS tracking table
+-- CREATE TABLE public.vehicle_locations (
+--     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+--     vehicle_id UUID REFERENCES public.vehicles(id) ON DELETE CASCADE NOT NULL,
+--     driver_id UUID REFERENCES public.drivers(id) ON DELETE CASCADE NOT NULL,
+--     latitude DECIMAL(10,8) NOT NULL,
+--     longitude DECIMAL(11,8) NOT NULL,
+--     accuracy DECIMAL(6,2),
+--     speed DECIMAL(5,2),
+--     heading DECIMAL(5,2),
+--     altitude DECIMAL(7,2),
+--     timestamp TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL,
+--     is_moving BOOLEAN DEFAULT false,
+--     battery_level DECIMAL(5,2),
+--     network_type TEXT,
+--     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL
+-- );
+
+-- -- 6. Create indexes
+-- CREATE INDEX IF NOT EXISTS idx_drivers_auth_user_id ON public.drivers(auth_user_id);
+-- CREATE INDEX IF NOT EXISTS idx_drivers_company_id ON public.drivers(company_id);
+-- CREATE INDEX IF NOT EXISTS idx_drivers_current_status ON public.drivers(current_status);
+-- CREATE INDEX IF NOT EXISTS idx_schedules_assigned_driver_id ON public.schedules(assigned_driver_id);
+-- CREATE INDEX IF NOT EXISTS idx_vehicle_locations_driver_id ON public.vehicle_locations(driver_id);
+-- CREATE INDEX IF NOT EXISTS idx_vehicle_locations_timestamp ON public.vehicle_locations(timestamp DESC);
+
+-- -- 7. Create update function
+-- CREATE OR REPLACE FUNCTION public.update_vehicle_location(
+--     p_vehicle_id UUID,
+--     p_driver_id UUID,
+--     p_latitude DECIMAL(10,8),
+--     p_longitude DECIMAL(11,8),
+--     p_accuracy DECIMAL(6,2) DEFAULT NULL,
+--     p_speed DECIMAL(5,2) DEFAULT NULL,
+--     p_heading DECIMAL(5,2) DEFAULT NULL,
+--     p_altitude DECIMAL(7,2) DEFAULT NULL,
+--     p_battery_level DECIMAL(5,2) DEFAULT NULL
+-- )
+-- RETURNS UUID AS $$
+-- DECLARE
+--     location_id UUID;
+--     is_moving BOOLEAN := false;
+-- BEGIN
+--     IF p_speed IS NOT NULL AND p_speed > 5 THEN
+--         is_moving := true;
+--     END IF;
+
+--     INSERT INTO public.vehicle_locations (
+--         vehicle_id, driver_id, latitude, longitude, accuracy, speed,
+--         heading, altitude, is_moving, battery_level
+--     ) VALUES (
+--         p_vehicle_id, p_driver_id, p_latitude, p_longitude, p_accuracy, p_speed,
+--         p_heading, p_altitude, is_moving, p_battery_level
+--     ) RETURNING id INTO location_id;
+
+--     UPDATE public.drivers
+--     SET last_active_at = TIMEZONE('utc'::text, now()),
+--         updated_at = TIMEZONE('utc'::text, now())
+--     WHERE auth_user_id = p_driver_id;
+
+--     RETURN location_id;
+-- END;
+-- $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- -- 8. Create triggers
+-- DROP TRIGGER IF EXISTS update_drivers_updated_at ON public.drivers;
+-- CREATE TRIGGER update_drivers_updated_at
+--     BEFORE UPDATE ON public.drivers
+--     FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
+
+-- DROP TRIGGER IF EXISTS update_schedules_updated_at ON public.schedules;
+-- CREATE TRIGGER update_schedules_updated_at
+--     BEFORE UPDATE ON public.schedules
+--     FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
+
+-- -- ==========================================
+-- -- Driver Mode Setup Complete!
+-- -- ==========================================
+-- -- Now you have:
+-- -- ✅ drivers table with company_id, auth_user_id, current_status
+-- -- ✅ schedules table with assigned_driver_id
+-- -- ✅ vehicle_locations table for GPS tracking
+-- -- ✅ update_vehicle_location function
+-- -- ✅ All necessary indexes and triggers

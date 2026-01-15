@@ -44,10 +44,7 @@ class _VanSeatLayoutFromImagePageState
     );
 
     Future.delayed(const Duration(milliseconds: 600), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const AddVanDetailsScreen()),
-      );
+      Navigator.pop(context, controller.getSeatLayoutData()); // Return layout data
     });
   }
 

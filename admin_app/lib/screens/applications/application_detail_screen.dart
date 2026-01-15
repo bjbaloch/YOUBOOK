@@ -25,12 +25,21 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
       final authProvider = Provider.of<AdminAuthProvider>(context, listen: false);
       final apiService = authProvider.getApiService();
 
+      // First, update the application status in database
       await apiService.approveApplication(widget.application.id, reviewNotes: reviewNotes);
+
+      // Then, send approval email to the user
+      try {
+        await EmailService.sendApplicationApprovedEmail(widget.application);
+      } catch (emailError) {
+        // Log email error but don't fail the approval process
+        print('⚠️ Failed to send approval email, but application was approved: $emailError');
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${widget.application.userFullName ?? 'User'} application approved'),
+            content: Text('${widget.application.userFullName ?? 'User'} application approved and notification email sent'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -56,12 +65,21 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
       final authProvider = Provider.of<AdminAuthProvider>(context, listen: false);
       final apiService = authProvider.getApiService();
 
+      // First, update the application status in database
       await apiService.rejectApplication(widget.application.id, reviewNotes: reviewNotes);
+
+      // Then, send rejection email to the user
+      try {
+        await EmailService.sendApplicationRejectedEmail(widget.application);
+      } catch (emailError) {
+        // Log email error but don't fail the rejection process
+        print('⚠️ Failed to send rejection email, but application was rejected: $emailError');
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${widget.application.userFullName ?? 'User'} application rejected'),
+            content: Text('${widget.application.userFullName ?? 'User'} application rejected and notification email sent'),
             backgroundColor: AppColors.warning,
           ),
         );
@@ -130,17 +148,48 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
   }
 
   Widget _buildDetailSection(String title, List<Widget> children) {
-    return Card(
+    return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primary.withOpacity(0.1),
+            AppColors.accent.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.primary.withOpacity(0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -253,17 +302,49 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                     ),
                     const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.accent.withOpacity(0.1),
+                            AppColors.primary.withOpacity(0.05),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.primary.withOpacity(0.3),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.1),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Text(
                         application.credentialDetails,
-                        style: const TextStyle(fontSize: 14, height: 1.5),
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.6,
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Uploaded Files:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildFilePreviews(application.credentialDetails),
                   ],
                 ),
 
@@ -285,15 +366,37 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                         ),
                         const SizedBox(height: 8),
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey.shade300),
+                            gradient: LinearGradient(
+                              colors: [
+                                AppColors.warning.withOpacity(0.1),
+                                AppColors.accent.withOpacity(0.05),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppColors.warning.withOpacity(0.3),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.warning.withOpacity(0.1),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
                           child: Text(
                             application.reviewNotes!,
-                            style: const TextStyle(fontSize: 14, height: 1.5),
+                            style: TextStyle(
+                              fontSize: 14,
+                              height: 1.6,
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
@@ -362,6 +465,197 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
               child: const Center(
                 child: CircularProgressIndicator(),
               ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilePreviews(String credentialDetailsJson) {
+    try {
+      // Parse the JSON credential details
+      final credentialDetails = credentialDetailsJson.replaceAll('{', '{"').replaceAll('}', '"}').replaceAll(': ', '": "').replaceAll(', ', '", "');
+      final Map<String, dynamic> details = {};
+
+      // Simple JSON parsing for the credential details
+      final jsonString = credentialDetailsJson;
+      // Extract file URLs from the JSON string
+      final fileUrls = <String, String>{};
+
+      // Look for file URLs in the JSON
+      if (jsonString.contains('cnicFrontPhoto') && jsonString.contains('https://')) {
+        final frontMatch = RegExp(r'cnicFrontPhoto["\s:]+([^,}]+)').firstMatch(jsonString);
+        if (frontMatch != null) {
+          final url = frontMatch.group(1)?.replaceAll('"', '').trim();
+          if (url != null && url.startsWith('https://')) {
+            fileUrls['CNIC Front Photo'] = url;
+          }
+        }
+      }
+
+      if (jsonString.contains('cnicBackPhoto') && jsonString.contains('https://')) {
+        final backMatch = RegExp(r'cnicBackPhoto["\s:]+([^,}]+)').firstMatch(jsonString);
+        if (backMatch != null) {
+          final url = backMatch.group(1)?.replaceAll('"', '').trim();
+          if (url != null && url.startsWith('https://')) {
+            fileUrls['CNIC Back Photo'] = url;
+          }
+        }
+      }
+
+      if (jsonString.contains('businessRegistrationDocument') && jsonString.contains('https://')) {
+        final docMatch = RegExp(r'businessRegistrationDocument["\s:]+([^,}]+)').firstMatch(jsonString);
+        if (docMatch != null) {
+          final url = docMatch.group(1)?.replaceAll('"', '').trim();
+          if (url != null && url.startsWith('https://')) {
+            fileUrls['Business Registration Document'] = url;
+          }
+        }
+      }
+
+      if (fileUrls.isEmpty) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Text(
+            'No files uploaded yet.',
+            style: TextStyle(color: Colors.grey),
+          ),
+        );
+      }
+
+      return Column(
+        children: fileUrls.entries.map((entry) {
+          final fileName = entry.key;
+          final fileUrl = entry.value;
+          final isImage = fileUrl.toLowerCase().contains('.jpg') ||
+                         fileUrl.toLowerCase().contains('.jpeg') ||
+                         fileUrl.toLowerCase().contains('.png');
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isImage ? Icons.image : Icons.picture_as_pdf,
+                  color: AppColors.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        fileName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        isImage ? 'Image file' : 'PDF document',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    // Open file in browser/webview
+                    _openFile(fileUrl, isImage);
+                  },
+                  icon: Icon(isImage ? Icons.visibility : Icons.download),
+                  label: Text(isImage ? 'View' : 'Open'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      );
+    } catch (e) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          'Error loading files: $e',
+          style: const TextStyle(color: Colors.red),
+        ),
+      );
+    }
+  }
+
+  void _openFile(String url, bool isImage) {
+    // For now, show a dialog with the URL
+    // In a real app, you might use url_launcher or a webview
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(isImage ? 'View Image' : 'Open Document'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isImage)
+              Container(
+                constraints: const BoxConstraints(maxHeight: 300),
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return const Center(child: CircularProgressIndicator());
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(
+                      child: Text('Failed to load image'),
+                    );
+                  },
+                ),
+              )
+            else
+              const Text('PDF documents will open in your browser.'),
+            const SizedBox(height: 16),
+            Text(
+              'URL: $url',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+          if (!isImage)
+            ElevatedButton(
+              onPressed: () {
+                // In a real app, use url_launcher to open in browser
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Opening: $url')),
+                );
+              },
+              child: const Text('Open in Browser'),
             ),
         ],
       ),

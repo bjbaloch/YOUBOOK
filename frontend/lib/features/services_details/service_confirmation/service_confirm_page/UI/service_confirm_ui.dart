@@ -3,7 +3,7 @@ import 'package:youbook/features/services_details/service_confirmation/service_c
 import 'package:youbook/features/services_details/service_confirmation/service_confirm_page/Logic/service_confirm_logic.dart';
 
 /// UI File — Only UI + calling logic
-void showServiceConfirmationDialog(BuildContext context) {
+void showServiceConfirmationDialog(BuildContext context, {Map<String, dynamic>? formData, Function? onSuccess}) {
   final cs = Theme.of(context).colorScheme;
   final parentContext = context;
 
@@ -39,6 +39,7 @@ void showServiceConfirmationDialog(BuildContext context) {
                 cs: cs,
                 isLoading: isLoading,
                 setState: (value) => setState(() => isLoading = value),
+                formData: formData,
               ),
             ),
           );

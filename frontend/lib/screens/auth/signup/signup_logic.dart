@@ -36,8 +36,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
   final supabase = Supabase.instance.client;
 
-
-
   Future<bool> _hasInternet() async {
     try {
       final res = await InternetAddress.lookup(
@@ -167,6 +165,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Future<bool> _checkFieldAvailability() async {
     final email = _canonicalEmail(_emailController.text);
+    final cnic = _cnicController.text.trim();
 
     setState(() {
       _emailServerError = null;
@@ -175,7 +174,7 @@ class _SignupScreenState extends State<SignupScreen> {
     });
 
     try {
-      // Only check email uniqueness (phone and cnic are not unique in profiles)
+      // Check email and CNIC uniqueness
       final List<Future<dynamic>> futures = <Future<dynamic>>[
         if (emailRegex.hasMatch(email) && email.isNotEmpty)
           supabase
@@ -185,17 +184,23 @@ class _SignupScreenState extends State<SignupScreen> {
               .maybeSingle()
         else
           Future<dynamic>.value(null),
+        if (cnic.isNotEmpty && cnic.length == 15)
+          supabase.from('profiles').select('id').eq('cnic', cnic).maybeSingle()
+        else
+          Future<dynamic>.value(null),
       ];
 
       final results = await Future.wait<dynamic>(futures);
       final emailExists = results[0] != null;
+      final cnicExists = results[1] != null;
 
       if (mounted) {
         setState(() {
           _emailServerError = emailExists ? 'Email already registered' : null;
+          _cnicServerError = cnicExists ? 'CNIC already registered' : null;
         });
       }
-      return !emailExists;
+      return !emailExists && !cnicExists;
     } on SocketException {
       SnackBarUtils.showSnackBar(
         context,
@@ -322,7 +327,9 @@ class _SignupScreenState extends State<SignupScreen> {
         );
         print("DEBUG: Email: ${_emailController.text.trim()}");
         print("DEBUG: Role: $_selectedRole");
-        print("DEBUG: User is NOT authenticated yet - waiting for email confirmation");
+        print(
+          "DEBUG: User is NOT authenticated yet - waiting for email confirmation",
+        );
 
         SnackBarUtils.showSnackBar(
           context,
@@ -334,6 +341,16 @@ class _SignupScreenState extends State<SignupScreen> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('pending_email', _emailController.text.trim());
         await prefs.setString('pending_role', _selectedRole);
+
+        // Store signup credentials locally for account screens
+        await ProfileStorageService.saveSignupData(
+          email: _emailController.text.trim(),
+          fullName: fullName.trim(),
+          phoneNumber: _phoneController.text.trim(),
+          cnic: _cnicController.text.trim().isNotEmpty
+              ? _cnicController.text.trim()
+              : null,
+        );
 
         Navigator.pushReplacement(
           context,
@@ -347,9 +364,29 @@ class _SignupScreenState extends State<SignupScreen> {
       } else if (!success && mounted) {
         print("DEBUG: Signup returned false");
         print("DEBUG: Auth provider error: ${authProvider.error}");
+
+        // Parse error for user-friendly message
+        String errorMessage = 'Failed to create account. Please try again.';
+        String? error = authProvider.error;
+        if (error != null) {
+          if (error.contains('Database error saving new user')) {
+            errorMessage =
+                'Unable to create your account. Please check your information and try again.';
+          } else if (error.contains('already exists') ||
+              error.contains('User already registered')) {
+            errorMessage = 'An account with this email already exists.';
+          } else if (error.contains('Network') || error.contains('Socket')) {
+            errorMessage =
+                'Network error. Please check your internet connection.';
+          } else if (error.contains('Signup failed')) {
+            errorMessage =
+                'Signup failed. Please check your email and password.';
+          }
+        }
+
         SnackBarUtils.showSnackBar(
           context,
-          authProvider.error ?? 'Failed to create account. Please try again.',
+          errorMessage,
           type: SnackBarType.error,
         );
       } else {

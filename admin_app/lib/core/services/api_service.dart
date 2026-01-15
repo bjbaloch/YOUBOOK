@@ -91,7 +91,7 @@ class ApiService {
   Future<List<ManagerApplication>> getManagerApplications({
     String? status,
   }) async {
-    var query = _supabase.from('manager_applications').select('*, profiles(email, full_name)');
+    var query = _supabase.from('manager_applications').select('*, profiles!manager_applications_user_id_fkey(email, full_name)');
 
     if (status != null) {
       query = query.eq('status', status);

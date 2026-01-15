@@ -1,122 +1,22 @@
 part of 'manager_services_screen.dart';
 
-enum ServiceType {
-  standard,
-  premium,
-  express,
-  luxury,
-}
-
-enum ServiceStatus {
-  active,
-  inactive,
-  maintenance,
-  suspended,
-}
-
-class Service {
-  final String id;
-  final String name;
-  final String description;
-  final ServiceType type;
-  ServiceStatus status;
-  final double basePrice;
-  final int capacity;
-  final String route;
-  final List<String> features;
-  final DateTime createdAt;
-  DateTime updatedAt;
-
-  Service({
-    required this.id,
-    required this.name,
-    required this.description,
-    required this.type,
-    required this.status,
-    required this.basePrice,
-    required this.capacity,
-    required this.route,
-    required this.features,
-    required this.createdAt,
-    required this.updatedAt,
-  });
-
-  factory Service.create({
-    required String name,
-    required String description,
-    required ServiceType type,
-    required double basePrice,
-    required int capacity,
-    required String route,
-    required List<String> features,
-  }) {
-    final now = DateTime.now();
-    return Service(
-      id: 'service_${DateTime.now().millisecondsSinceEpoch}',
-      name: name,
-      description: description,
-      type: type,
-      status: ServiceStatus.active,
-      basePrice: basePrice,
-      capacity: capacity,
-      route: route,
-      features: features,
-      createdAt: now,
-      updatedAt: now,
-    );
-  }
-}
-
 class ManagerServicesData {
   List<Service> services = [];
   bool isLoading = false;
+  final ApiService _apiService = ApiService();
 
   Future<void> loadServices() async {
     isLoading = true;
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Sample services
-    services = [
-      Service.create(
-        name: 'Islamabad to Lahore Standard',
-        description: 'Standard van service between Islamabad and Lahore',
-        type: ServiceType.standard,
-        basePrice: 2500.0,
-        capacity: 12,
-        route: 'Islamabad → Lahore',
-        features: ['AC', 'WiFi', 'Refreshments'],
-      ),
-      Service.create(
-        name: 'Rawalpindi to Islamabad Express',
-        description: 'Express service with premium amenities',
-        type: ServiceType.express,
-        basePrice: 1800.0,
-        capacity: 8,
-        route: 'Rawalpindi → Islamabad',
-        features: ['AC', 'WiFi', 'Premium Seats', 'Snacks'],
-      ),
-      Service.create(
-        name: 'Lahore to Karachi Premium',
-        description: 'Premium long-distance service',
-        type: ServiceType.premium,
-        basePrice: 8500.0,
-        capacity: 10,
-        route: 'Lahore → Karachi',
-        features: ['AC', 'WiFi', 'Meals', 'Entertainment', 'Reclining Seats'],
-      ),
-      Service.create(
-        name: 'Peshawar to Islamabad Standard',
-        description: 'Regular service for Peshawar route',
-        type: ServiceType.standard,
-        basePrice: 2200.0,
-        capacity: 14,
-        route: 'Peshawar → Islamabad',
-        features: ['AC', 'WiFi'],
-      ),
-    ];
-
-    isLoading = false;
+    try {
+      final servicesData = await _apiService.getManagerServices();
+      services = servicesData.map((json) => Service.fromJson(json)).toList();
+    } catch (e) {
+      // On error, keep empty list
+      services = [];
+      rethrow;
+    } finally {
+      isLoading = false;
+    }
   }
 
   void addService(Service service) {
@@ -127,6 +27,7 @@ class ManagerServicesData {
     final index = services.indexWhere((s) => s.id == updatedService.id);
     if (index != -1) {
       services[index] = updatedService;
+      // Trigger a UI update if needed
     }
   }
 
@@ -134,8 +35,19 @@ class ManagerServicesData {
     services.removeWhere((s) => s.id == serviceId);
   }
 
+  Future<void> refreshServices() async {
+    await loadServices();
+  }
+
   List<Service> getActiveServices() {
     return services.where((s) => s.status == ServiceStatus.active).toList();
+  }
+
+  List<Service> getPausedServices() {
+    return services.where((s) =>
+        s.status == ServiceStatus.inactive ||
+        s.status == ServiceStatus.maintenance ||
+        s.status == ServiceStatus.suspended).toList();
   }
 
   List<Service> getServicesByType(ServiceType type) {

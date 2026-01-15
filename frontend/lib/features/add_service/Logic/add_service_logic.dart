@@ -3,6 +3,7 @@ import 'package:youbook/features/services_details/bus_details/bus_detail_page/UI
 import 'package:youbook/features/services_details/van_details/van_details_page/UI/van_detail_ui.dart';
 import 'package:youbook/screens/manager/Home/Data/manager_home_data.dart';
 import 'package:youbook/screens/manager/Home/UI/manager_home_ui.dart';
+import 'package:youbook/screens/manager/services/manager_services_screen.dart';
 
 class ServicesLogic {
   /// Smooth Route Transition
@@ -50,7 +51,9 @@ class ServicesLogic {
   }
 
   static void openAddedServices(BuildContext context) {
-    Navigator.push(context, smoothRoute(const AddBusDetailsScreen()));
+    // TODO: Navigate to a screen that shows added services
+    // For now, navigate to manager services screen
+    Navigator.push(context, smoothRoute(const ManagerServicesScreen()));
   }
 
   static void openBusDetails(BuildContext context) {

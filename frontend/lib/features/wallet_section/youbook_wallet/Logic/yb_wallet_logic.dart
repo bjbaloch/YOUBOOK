@@ -4,6 +4,14 @@ import '../Data/yb_wallet_data.dart';
 class WalletLogic {
   final WalletData data = WalletData();
 
+  Future<void> initializeWallet() async {
+    await Future.wait([
+      data.loadWalletData(),
+      data.loadTransactions(),
+      data.loadPendingTransactions(),
+    ]);
+  }
+
   void selectTab(int index, VoidCallback updateUI) {
     data.selectedTab = index;
     updateUI();

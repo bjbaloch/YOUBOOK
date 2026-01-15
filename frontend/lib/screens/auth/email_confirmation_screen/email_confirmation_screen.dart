@@ -4,14 +4,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
-import 'package:youbook/screens/manager/Home/Data/manager_home_data.dart';
-import 'package:youbook/screens/manager/Home/UI/manager_home_ui.dart';
-import 'package:youbook/screens/passenger/Home/Data/passenger_home_data.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/snackbar_utils.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/auth_provider.dart';
-import '../../passenger/Home/UI/passenger_home_ui.dart';
+import '../../../core/services/role_based_navigation_service.dart';
 import '../login/login_screen.dart';
 
 part 'email_confirmation_data.dart';

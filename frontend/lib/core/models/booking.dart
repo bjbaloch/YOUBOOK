@@ -1,6 +1,6 @@
 import 'package:uuid/uuid.dart';
 
-enum BookingStatus { paid, unpaid }
+enum BookingStatus { confirmed, cancelled, completed, pending }
 enum VehicleType { bus, van }
 
 class BookingModel {
@@ -47,7 +47,10 @@ class BookingModel {
       routeId: json['route_id']?.toString() ?? '',
       routeName: json['route_name']?.toString(),
       vehicleType: json['vehicle_type'] == 'van' ? VehicleType.van : VehicleType.bus,
-      status: json['status'] == 'paid' ? BookingStatus.paid : BookingStatus.unpaid,
+      status: BookingStatus.values.firstWhere(
+        (e) => e.toString() == 'BookingStatus.${json['status']}',
+        orElse: () => BookingStatus.pending,
+      ),
       bookingDate: json['booking_date'] != null
           ? DateTime.parse(json['booking_date'].toString())
           : DateTime.now(),
@@ -76,7 +79,7 @@ class BookingModel {
       'route_id': routeId,
       'route_name': routeName,
       'vehicle_type': vehicleType == VehicleType.van ? 'van' : 'bus',
-      'status': status == BookingStatus.paid ? 'paid' : 'unpaid',
+      'status': status.toString().split('.').last,
       'booking_date': bookingDate.toIso8601String(),
       'travel_date': travelDate.toIso8601String(),
       'departure_time': departureTime,
@@ -128,8 +131,14 @@ class BookingModel {
     );
   }
 
-  bool get isPaid => status == BookingStatus.paid;
-  bool get isUnpaid => status == BookingStatus.unpaid;
+  bool get isConfirmed => status == BookingStatus.confirmed;
+  bool get isCancelled => status == BookingStatus.cancelled;
+  bool get isCompleted => status == BookingStatus.completed;
+  bool get isPending => status == BookingStatus.pending;
+
+  // Backward compatibility getters for existing UI code
+  bool get isPaid => status == BookingStatus.confirmed || status == BookingStatus.completed;
+  bool get isUnpaid => status == BookingStatus.pending;
   bool get isBus => vehicleType == VehicleType.bus;
   bool get isVan => vehicleType == VehicleType.van;
 

@@ -1,29 +1,65 @@
 part of 'manager_services_screen.dart';
 
+String _getActualSeatCount(Service service) {
+  if (service.seatLayout != null && service.seatLayout!['totalSeats'] != null) {
+    return service.seatLayout!['totalSeats'].toString();
+  }
+  return service.capacity.toString();
+}
+
+void _navigateToAddService(BuildContext context) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const ServicesPage()),
+  );
+}
+
+void _navigateToServiceEdit(
+  BuildContext context,
+  String serviceId,
+  _ManagerServicesScreenState state,
+) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => ServiceEditScreen(serviceId: serviceId)),
+  ).then((result) {
+    if (result == true) {
+      // Service was updated, refresh the list to show updated values
+      state._initializeServices();
+    }
+  });
+}
+
 Widget _buildServicesUI(_ManagerServicesScreenState state) {
   final cs = Theme.of(state.context).colorScheme;
 
   if (state._data.isLoading) {
-    return const Center(
-      child: CircularProgressIndicator(),
-    );
+    return const Center(child: CircularProgressIndicator());
   }
 
-  return RefreshIndicator(
-    onRefresh: state._initializeServices,
-    child: Column(
-      children: [
-        // Services Summary
-        _buildServicesSummary(state),
-        const SizedBox(height: 16),
+  return Scaffold(
+    floatingActionButton: FloatingActionButton(
+      onPressed: () => _navigateToAddService(state.context),
+      backgroundColor: cs.primary,
+      foregroundColor: cs.onPrimary,
+      child: const Icon(Icons.add),
+    ),
+    body: RefreshIndicator(
+      onRefresh: state._initializeServices,
+      child: Column(
+        children: [
+          // Services Summary
+          _buildServicesSummary(state),
+          const SizedBox(height: 16),
 
-        // Services List
-        Expanded(
-          child: state._data.services.isEmpty
-              ? _buildEmptyState(state)
-              : _buildServicesList(state),
-        ),
-      ],
+          // Services List
+          Expanded(
+            child: state._data.services.isEmpty
+                ? _buildEmptyState(state)
+                : _buildServicesList(state),
+          ),
+        ],
+      ),
     ),
   );
 }
@@ -31,7 +67,7 @@ Widget _buildServicesUI(_ManagerServicesScreenState state) {
 Widget _buildServicesSummary(_ManagerServicesScreenState state) {
   final cs = Theme.of(state.context).colorScheme;
   final activeServices = state._data.getActiveServices();
-  final totalRevenue = state._data.getTotalRevenue();
+  final pausedServices = state._data.getPausedServices();
 
   return Container(
     margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -60,17 +96,17 @@ Widget _buildServicesSummary(_ManagerServicesScreenState state) {
         Expanded(
           child: _buildSummaryItem(
             icon: Icons.check_circle,
-            title: 'Active',
+            title: 'Active Services',
             value: '${activeServices.length}',
             color: Colors.green,
           ),
         ),
         Expanded(
           child: _buildSummaryItem(
-            icon: Icons.attach_money,
-            title: 'Revenue',
-            value: 'PKR ${totalRevenue.toStringAsFixed(0)}',
-            color: Colors.blue,
+            icon: Icons.pause_circle,
+            title: 'Paused Services',
+            value: '${pausedServices.length}',
+            color: Colors.orange,
           ),
         ),
       ],
@@ -98,10 +134,7 @@ Widget _buildSummaryItem({
       ),
       Text(
         title,
-        style: TextStyle(
-          fontSize: 12,
-          color: Colors.grey[600],
-        ),
+        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         textAlign: TextAlign.center,
       ),
     ],
@@ -133,24 +166,12 @@ Widget _buildEmptyState(_ManagerServicesScreenState state) {
           ),
           const SizedBox(height: 8),
           Text(
-            'Create your first service to get started',
+            'Services will appear here when added',
             style: TextStyle(
               fontSize: 16,
               color: cs.onSurface.withOpacity(0.7),
             ),
             textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => state._showAddServiceDialog(state.context),
-            icon: const Icon(Icons.add),
-            label: const Text('Add First Service'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 12,
-              ),
-            ),
           ),
         ],
       ),
@@ -174,139 +195,132 @@ Widget _buildServiceCard(_ManagerServicesScreenState state, Service service) {
 
   return Card(
     margin: const EdgeInsets.only(bottom: 12),
-    shape: RoundedRectangleBorder(
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    child: InkWell(
+      onTap: () => _navigateToServiceEdit(state.context, service.id, state),
       borderRadius: BorderRadius.circular(12),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  service.name,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: cs.onSurface,
-                  ),
-                ),
-              ),
-              _buildStatusBadge(service.status),
-            ],
-          ),
-
-          const SizedBox(height: 8),
-
-          // Route
-          Row(
-            children: [
-              Icon(Icons.route, size: 16, color: cs.primary),
-              const SizedBox(width: 4),
-              Text(
-                service.route,
-                style: TextStyle(
-                  color: cs.onSurface.withOpacity(0.8),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Details
-          Row(
-            children: [
-              Expanded(
-                child: _buildServiceDetail(
-                  icon: Icons.attach_money,
-                  label: 'Price',
-                  value: 'PKR ${service.basePrice.toStringAsFixed(0)}',
-                ),
-              ),
-              Expanded(
-                child: _buildServiceDetail(
-                  icon: Icons.people,
-                  label: 'Capacity',
-                  value: '${service.capacity} seats',
-                ),
-              ),
-              Expanded(
-                child: _buildServiceDetail(
-                  icon: Icons.star,
-                  label: 'Type',
-                  value: service.type.toString().split('.').last.toUpperCase(),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Features
-          if (service.features.isNotEmpty) ...[
-            Text(
-              'Features:',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: cs.onSurface,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: service.features.map((feature) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: cs.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Expanded(
                   child: Text(
-                    feature,
+                    service.name,
                     style: TextStyle(
-                      fontSize: 12,
-                      color: cs.primary,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: cs.onSurface,
                     ),
                   ),
-                );
-              }).toList(),
-            ),
-          ],
-
-          const SizedBox(height: 16),
-
-          // Actions
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton.icon(
-                onPressed: () => _showEditServiceDialog(state, service),
-                icon: const Icon(Icons.edit, size: 16),
-                label: const Text('Edit'),
-              ),
-              const SizedBox(width: 8),
-              TextButton.icon(
-                onPressed: () => _showDeleteConfirmation(state, service),
-                icon: const Icon(Icons.delete, size: 16),
-                label: const Text('Delete'),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.red,
                 ),
-              ),
+                _buildStatusBadge(service.status),
+                PopupMenuButton<ServiceStatus>(
+                  icon: Icon(
+                    Icons.more_vert,
+                    color: cs.onSurface.withOpacity(0.6),
+                  ),
+                  onSelected: (ServiceStatus newStatus) async {
+                    await _updateServiceStatus(state, service.id, newStatus);
+                  },
+                  itemBuilder: (BuildContext context) =>
+                      ServiceStatus.values.map((status) {
+                        return PopupMenuItem<ServiceStatus>(
+                          value: status,
+                          child: Row(
+                            children: [
+                              Icon(
+                                _getStatusIcon(status),
+                                color: _getStatusColor(status),
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _getStatusText(status),
+                                style: TextStyle(
+                                  color: service.status == status
+                                      ? cs.primary
+                                      : cs.onSurface,
+                                  fontWeight: service.status == status
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                              if (service.status == status) ...[
+                                const SizedBox(width: 8),
+                                Icon(Icons.check, color: cs.primary, size: 16),
+                              ],
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            // Route
+            Row(
+              children: [
+                Icon(Icons.route, size: 16, color: cs.primary),
+                const SizedBox(width: 4),
+                Text(
+                  service.route,
+                  style: TextStyle(
+                    color: cs.onSurface.withOpacity(0.8),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Details
+            Row(
+              children: [
+                Expanded(
+                  child: _buildServiceDetail(
+                    icon: Icons.attach_money,
+                    label: 'Price',
+                    value: 'PKR ${service.basePrice.toStringAsFixed(0)}',
+                  ),
+                ),
+                Expanded(
+                  child: _buildServiceDetail(
+                    icon: Icons.people,
+                    label: 'Capacity',
+                    value: '${_getActualSeatCount(service)} seats',
+                  ),
+                ),
+                Expanded(
+                  child: _buildServiceDetail(
+                    icon: Icons.star,
+                    label: 'Type',
+                    value: 'Transport', // All services are transport services
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Vehicle Credentials
+            if (_hasVehicleCredentials(service)) ...[
+              _buildVehicleCredentialsSection(service, cs),
+              const SizedBox(height: 12),
             ],
-          ),
-        ],
+
+            // Features (excluding WiFi)
+            ..._buildFeaturesSection(service, cs),
+
+            const SizedBox(height: 16),
+          ],
+        ),
       ),
     ),
   );
@@ -332,14 +346,237 @@ Widget _buildServiceDetail({
       ),
       Text(
         label,
-        style: TextStyle(
-          fontSize: 12,
-          color: Colors.grey[600],
-        ),
+        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         textAlign: TextAlign.center,
       ),
     ],
   );
+}
+
+List<Widget> _buildFeaturesSection(Service service, ColorScheme cs) {
+  final filteredFeatures = service.features
+      .where((feature) => feature != 'WiFi')
+      .toList();
+  if (filteredFeatures.isEmpty) return [];
+
+  return [
+    Text(
+      'Features:',
+      style: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        color: cs.onSurface,
+      ),
+    ),
+    const SizedBox(height: 4),
+    Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      children: filteredFeatures.map((feature) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: cs.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            feature,
+            style: TextStyle(
+              fontSize: 12,
+              color: cs.primary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        );
+      }).toList(),
+    ),
+  ];
+}
+
+bool _hasVehicleCredentials(Service service) {
+  return service.vehicleNumber != null ||
+      service.vehicleColor != null ||
+      service.proprietor != null ||
+      service.generalManager != null ||
+      service.manager != null ||
+      service.secretary != null;
+}
+
+Widget _buildVehicleCredentialsSection(Service service, ColorScheme cs) {
+  final credentials = <Widget>[];
+
+  // Vehicle Information
+  if (service.vehicleNumber != null || service.vehicleColor != null) {
+    credentials.add(
+      Row(
+        children: [
+          Icon(Icons.directions_car, size: 16, color: cs.primary),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              'Vehicle: ${service.vehicleNumber ?? 'N/A'} (${service.vehicleColor ?? 'N/A'})',
+              style: TextStyle(
+                fontSize: 14,
+                color: cs.onSurface.withOpacity(0.8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Proprietor Information
+  if (service.proprietor != null ||
+      service.generalManager != null ||
+      service.manager != null ||
+      service.secretary != null) {
+    final proprietorInfo = [
+      if (service.proprietor != null) 'Prop: ${service.proprietor}',
+      if (service.generalManager != null) 'GM: ${service.generalManager}',
+      if (service.manager != null) 'Mgr: ${service.manager}',
+      if (service.secretary != null) 'Sec: ${service.secretary}',
+    ].join(' | ');
+
+    if (proprietorInfo.isNotEmpty) {
+      credentials.add(
+        Row(
+          children: [
+            Icon(Icons.business, size: 16, color: cs.primary),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                proprietorInfo,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: cs.onSurface.withOpacity(0.8),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  if (credentials.isEmpty) return const SizedBox.shrink();
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Vehicle Credentials:',
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: cs.onSurface,
+        ),
+      ),
+      const SizedBox(height: 4),
+      ...credentials,
+    ],
+  );
+}
+
+Future<void> _updateServiceStatus(
+  _ManagerServicesScreenState state,
+  String serviceId,
+  ServiceStatus newStatus,
+) async {
+  try {
+    final apiService = ApiService();
+    final currentService = state._data.services.firstWhere(
+      (s) => s.id == serviceId,
+    );
+
+    // Send ALL current service data with only status changed
+    final updatedServiceData = await apiService.updateService(serviceId, {
+      'name': currentService.name,
+      'description': currentService.description,
+      'type': 'transport',
+      'status': newStatus.name,
+      'base_price': currentService.basePrice,
+      'capacity': currentService.capacity,
+      'route': currentService.route,
+      'features': currentService.features,
+      'vehicle_number': currentService.vehicleNumber,
+      'vehicle_color': currentService.vehicleColor,
+      'proprietor': currentService.proprietor,
+      'general_manager': currentService.generalManager,
+      'manager': currentService.manager,
+      'secretary': currentService.secretary,
+      'from_location': currentService.fromLocation,
+      'to_location': currentService.toLocation,
+      'boarding_office': currentService.boardingOffice,
+      'arrival_office': currentService.arrivalOffice,
+      'departure_time': currentService.departureTime,
+      'arrival_time': currentService.arrivalTime,
+      'application_charges': currentService.applicationCharges,
+      'seat_layout': currentService.seatLayout,
+      'is_seat_layout_configured': currentService.isSeatLayoutConfigured,
+    });
+
+    // Update local service object with API response data
+    final index = state._data.services.indexWhere((s) => s.id == serviceId);
+    if (index != -1) {
+      // Use the API response to ensure data integrity
+      state._data.services[index] = Service.fromJson(updatedServiceData);
+    }
+
+    // Force UI refresh to ensure all values remain visible
+    state.setState(() {});
+
+    if (state.mounted) {
+      ScaffoldMessenger.of(state.context).showSnackBar(
+        SnackBar(content: Text('Service status updated to ${newStatus.name}')),
+      );
+    }
+  } catch (e) {
+    if (state.mounted) {
+      ScaffoldMessenger.of(
+        state.context,
+      ).showSnackBar(SnackBar(content: Text('Failed to update status: $e')));
+    }
+  }
+}
+
+IconData _getStatusIcon(ServiceStatus status) {
+  switch (status) {
+    case ServiceStatus.active:
+      return Icons.check_circle;
+    case ServiceStatus.inactive:
+      return Icons.cancel;
+    case ServiceStatus.maintenance:
+      return Icons.build;
+    case ServiceStatus.suspended:
+      return Icons.block;
+  }
+}
+
+Color _getStatusColor(ServiceStatus status) {
+  switch (status) {
+    case ServiceStatus.active:
+      return Colors.green;
+    case ServiceStatus.inactive:
+      return Colors.grey;
+    case ServiceStatus.maintenance:
+      return Colors.orange;
+    case ServiceStatus.suspended:
+      return Colors.red;
+  }
+}
+
+String _getStatusText(ServiceStatus status) {
+  switch (status) {
+    case ServiceStatus.active:
+      return 'Active';
+    case ServiceStatus.inactive:
+      return 'Inactive';
+    case ServiceStatus.maintenance:
+      return 'Maintenance';
+    case ServiceStatus.suspended:
+      return 'Suspended';
+  }
 }
 
 Widget _buildStatusBadge(ServiceStatus status) {
@@ -374,368 +611,7 @@ Widget _buildStatusBadge(ServiceStatus status) {
     ),
     child: Text(
       text,
-      style: TextStyle(
-        color: color,
-        fontSize: 12,
-        fontWeight: FontWeight.w500,
-      ),
+      style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w500),
     ),
   );
-}
-
-void _showEditServiceDialog(_ManagerServicesScreenState state, Service service) {
-  showDialog(
-    context: state.context,
-    builder: (context) => _AddServiceDialog(
-      service: service,
-      onAddService: (updatedService) {
-        Navigator.of(context).pop();
-        state._updateService(updatedService);
-      },
-    ),
-  );
-}
-
-void _showDeleteConfirmation(_ManagerServicesScreenState state, Service service) {
-  showDialog(
-    context: state.context,
-    builder: (context) => AlertDialog(
-      title: const Text('Delete Service'),
-      content: Text('Are you sure you want to delete "${service.name}"?'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-            state._deleteService(service.id);
-          },
-          style: TextButton.styleFrom(
-            foregroundColor: Colors.red,
-          ),
-          child: const Text('Delete'),
-        ),
-      ],
-    ),
-  );
-}
-
-class _AddServiceDialog extends StatefulWidget {
-  final Service? service;
-  final Function(Service) onAddService;
-
-  const _AddServiceDialog({
-    this.service,
-    required this.onAddService,
-  });
-
-  @override
-  State<_AddServiceDialog> createState() => _AddServiceDialogState();
-}
-
-class _AddServiceDialogState extends State<_AddServiceDialog> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _priceController = TextEditingController();
-  final _capacityController = TextEditingController();
-  final _routeController = TextEditingController();
-  final _featuresController = TextEditingController();
-
-  ServiceType _selectedType = ServiceType.standard;
-  final List<String> _features = [];
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.service != null) {
-      _nameController.text = widget.service!.name;
-      _descriptionController.text = widget.service!.description;
-      _priceController.text = widget.service!.basePrice.toString();
-      _capacityController.text = widget.service!.capacity.toString();
-      _routeController.text = widget.service!.route;
-      _selectedType = widget.service!.type;
-      _features.addAll(widget.service!.features);
-    }
-  }
-
-  void _addFeature() {
-    if (_featuresController.text.isNotEmpty) {
-      setState(() {
-        _features.add(_featuresController.text.trim());
-        _featuresController.clear();
-      });
-    }
-  }
-
-  void _removeFeature(int index) {
-    setState(() {
-      _features.removeAt(index);
-    });
-  }
-
-  void _submit() {
-    if (_formKey.currentState!.validate()) {
-      final service = widget.service != null
-          ? Service(
-              id: widget.service!.id,
-              name: _nameController.text.trim(),
-              description: _descriptionController.text.trim(),
-              type: _selectedType,
-              status: widget.service!.status,
-              basePrice: double.parse(_priceController.text),
-              capacity: int.parse(_capacityController.text),
-              route: _routeController.text.trim(),
-              features: _features,
-              createdAt: widget.service!.createdAt,
-              updatedAt: DateTime.now(),
-            )
-          : Service.create(
-              name: _nameController.text.trim(),
-              description: _descriptionController.text.trim(),
-              type: _selectedType,
-              basePrice: double.parse(_priceController.text),
-              capacity: int.parse(_capacityController.text),
-              route: _routeController.text.trim(),
-              features: _features,
-            );
-
-      widget.onAddService(service);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Container(
-        width: double.maxFinite,
-        constraints: const BoxConstraints(maxWidth: 500),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.service != null ? 'Edit Service' : 'Add New Service',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: cs.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Service Name
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Service Name',
-                      hintText: 'e.g., Islamabad to Lahore Standard',
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter service name';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Description
-                  TextFormField(
-                    controller: _descriptionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Description',
-                      hintText: 'Brief description of the service',
-                    ),
-                    maxLines: 2,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter description';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Type and Route Row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<ServiceType>(
-                          value: _selectedType,
-                          decoration: const InputDecoration(
-                            labelText: 'Service Type',
-                          ),
-                          items: ServiceType.values.map((type) {
-                            return DropdownMenuItem(
-                              value: type,
-                              child: Text(type.toString().split('.').last.toUpperCase()),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() {
-                                _selectedType = value;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _routeController,
-                          decoration: const InputDecoration(
-                            labelText: 'Route',
-                            hintText: 'e.g., Islamabad → Lahore',
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter route';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Price and Capacity Row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _priceController,
-                          decoration: const InputDecoration(
-                            labelText: 'Base Price (PKR)',
-                            hintText: '2500',
-                          ),
-                          keyboardType: TextInputType.number,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter price';
-                            }
-                            final price = double.tryParse(value);
-                            if (price == null || price <= 0) {
-                              return 'Invalid price';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _capacityController,
-                          decoration: const InputDecoration(
-                            labelText: 'Capacity',
-                            hintText: '12',
-                          ),
-                          keyboardType: TextInputType.number,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter capacity';
-                            }
-                            final capacity = int.tryParse(value);
-                            if (capacity == null || capacity <= 0) {
-                              return 'Invalid capacity';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Features
-                  const Text(
-                    'Features',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _featuresController,
-                          decoration: const InputDecoration(
-                            hintText: 'Add feature (e.g., AC, WiFi)',
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                          ),
-                          onSubmitted: (_) => _addFeature(),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: _addFeature,
-                        icon: const Icon(Icons.add),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: _features.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final feature = entry.value;
-                      return Chip(
-                        label: Text(feature),
-                        deleteIcon: const Icon(Icons.close, size: 16),
-                        onDeleted: () => _removeFeature(index),
-                      );
-                    }).toList(),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Cancel'),
-                      ),
-                      const SizedBox(width: 16),
-                      ElevatedButton(
-                        onPressed: _submit,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: cs.primary,
-                          foregroundColor: cs.onPrimary,
-                        ),
-                        child: Text(widget.service != null ? 'Update' : 'Create'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

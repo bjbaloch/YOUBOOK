@@ -1,7 +1,4 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../constants/app_constants.dart';
 import '../models/user.dart';
 
 class AuthService {
@@ -124,17 +121,22 @@ class AuthService {
         'full_name': user.fullName,
         'phone_number': user.phoneNumber,
         'avatar_url': user.avatarUrl,
+        'cnic': user.cnic,
+        'address': user.address,
+        'city': user.city,
+        'state_province': user.stateProvince,
+        'country': user.country,
         if (companyName != null) 'company_name': companyName,
         if (credentialDetails != null) 'credential_details': credentialDetails,
+        'updated_at': DateTime.now().toIso8601String(),
       };
 
-      final response = await http.put(
-        Uri.parse('${AppConstants.apiBaseUrl}/profile'),
-        headers: _getAuthHeaders(),
-        body: json.encode(updateData),
-      );
+      await supabase
+          .from('profiles')
+          .update(updateData)
+          .eq('id', user.id);
 
-      return response.statusCode == 200;
+      return true;
     } catch (e) {
       rethrow;
     }
@@ -210,32 +212,5 @@ class AuthService {
     }
   }
 
-  // Helper method to get auth headers
-  Map<String, String> _getAuthHeaders() {
-    final token = supabase.auth.currentSession?.accessToken;
-    return {
-      'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-    };
-  }
 
-  // Refresh token
-  Future<String?> refreshToken() async {
-    try {
-      final response = await http.post(
-        Uri.parse('${AppConstants.apiBaseUrl}/auth/refresh-token'),
-        headers: _getAuthHeaders(),
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final newToken = data['access_token'];
-        await supabase.auth.setSession(newToken);
-        return newToken;
-      }
-      return null;
-    } catch (e) {
-      return null;
-    }
-  }
 }

@@ -107,10 +107,7 @@ class SeatLayoutLogic {
     );
 
     Future.delayed(const Duration(milliseconds: 600), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const AddBusDetailsScreen()),
-      );
+      Navigator.pop(context, layout); // Return layout data
     });
   }
 

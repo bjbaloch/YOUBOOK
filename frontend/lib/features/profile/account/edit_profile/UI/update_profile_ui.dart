@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/providers/auth_provider.dart';
 import '../../../../../core/widgets/success_dialog.dart';
 import '../../../../../core/services/profile_storage_service.dart';
 import '../Logic/update_profile_logic.dart';
@@ -18,6 +20,7 @@ class _EditProfilePageUIState extends State<EditProfilePageUI> {
   bool _loading = false;
 
   final _nameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
   final _cnicCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
   final _cityCtrl = TextEditingController();
@@ -32,20 +35,35 @@ class _EditProfilePageUIState extends State<EditProfilePageUI> {
     _loadExistingData();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data if AuthProvider user changes
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.user != null) {
+      _loadExistingData();
+    }
+  }
+
   Future<void> _loadExistingData() async {
     try {
-      // Load combined profile data from storage
-      final accountData = await ProfileStorageService.getCombinedProfileData();
+      // Only load data if there's an authenticated user
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final currentUser = authProvider.user;
 
-      // Populate form fields with existing data
-      setState(() {
-        _nameCtrl.text = accountData.fullName ?? '';
-        _cnicCtrl.text = accountData.cnic ?? '';
-        _countryCtrl.text = accountData.country ?? '';
-        _stateCtrl.text = accountData.stateProvince ?? '';
-        _cityCtrl.text = accountData.city ?? '';
-        _addressCtrl.text = accountData.address ?? '';
-      });
+      if (currentUser != null) {
+        // Use authenticated user data from database
+        setState(() {
+          _nameCtrl.text = currentUser.fullName ?? '';
+          _phoneCtrl.text = currentUser.phoneNumber ?? '';
+          _cnicCtrl.text = currentUser.cnic ?? '';
+          _countryCtrl.text = currentUser.country ?? '';
+          _stateCtrl.text = currentUser.stateProvince ?? '';
+          _cityCtrl.text = currentUser.city ?? '';
+          _addressCtrl.text = currentUser.address ?? '';
+        });
+      }
+      // If no authenticated user, leave fields empty
     } catch (e) {
       debugPrint('Error loading existing data: $e');
       // Keep fields empty on error
@@ -55,6 +73,7 @@ class _EditProfilePageUIState extends State<EditProfilePageUI> {
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _phoneCtrl.dispose();
     _cnicCtrl.dispose();
     _addressCtrl.dispose();
     _cityCtrl.dispose();
@@ -66,28 +85,49 @@ class _EditProfilePageUIState extends State<EditProfilePageUI> {
   Future<void> _updateProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Transfer form data to logic data object
+    _logic.data.fullName = _nameCtrl.text.trim();
+    _logic.data.phone = _phoneCtrl.text.trim();
+    _logic.data.cnic = _cnicCtrl.text.trim();
+    _logic.data.country = _countryCtrl.text.trim();
+    _logic.data.stateProvince = _stateCtrl.text.trim();
+    _logic.data.city = _cityCtrl.text.trim();
+    _logic.data.address = _addressCtrl.text.trim();
+
     setState(() => _loading = true);
-    final success = await _logic.updateProfile();
 
-    if (!mounted) return;
-    setState(() => _loading = false);
+    String? errorMessage;
+    try {
+      final success = await _logic.updateProfile(context);
 
-    if (success) {
-      await SuccessDialog.show(
-        context,
-        title: 'Profile Updated!',
-        message: 'Your profile has been updated successfully.',
-        icon: Icons.check_circle,
-      );
-      Navigator.of(context).pop(true);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to update profile. Please try again.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      if (success) {
+        await SuccessDialog.show(
+          context,
+          title: 'Profile Updated!',
+          message: 'Your profile has been updated successfully.',
+          icon: Icons.check_circle,
+        );
+        Navigator.of(context).pop(true);
+        return;
+      } else {
+        errorMessage = 'Failed to update profile. Please try again.';
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      errorMessage = e.toString();
     }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(errorMessage ?? 'Unknown error occurred'),
+        backgroundColor: AppColors.error,
+        duration: const Duration(seconds: 5),
+      ),
+    );
   }
 
   PreferredSizeWidget _appBar(BuildContext context) {
@@ -233,6 +273,17 @@ class _EditProfilePageUIState extends State<EditProfilePageUI> {
                   label: 'Full Name',
                   controller: _nameCtrl,
                   validator: (v) => _logic.validateRequiredField(v, 'name'),
+                ),
+                const SizedBox(height: 12),
+
+                _field(
+                  context: context,
+                  icon: Icons.phone,
+                  label: 'Phone Number',
+                  controller: _phoneCtrl,
+                  type: TextInputType.phone,
+                  validator: (v) =>
+                      _logic.validateRequiredField(v, 'phone number'),
                 ),
                 const SizedBox(height: 12),
 

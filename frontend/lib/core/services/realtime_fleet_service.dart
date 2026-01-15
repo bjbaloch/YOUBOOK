@@ -123,7 +123,7 @@ class RealtimeFleetService {
     try {
       // Get all vehicles with their current status
       final response = await _supabase
-        .from('vehicle_status')
+        .from('vehicle_statuses')
         .select('''
           *,
           vehicles (
@@ -249,7 +249,7 @@ class RealtimeFleetService {
   }) async {
     try {
       await _supabase
-        .from('vehicle_status')
+        .from('vehicle_statuses')
         .update({
           'status': status,
           'notes': notes,
