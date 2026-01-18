@@ -1,13 +1,11 @@
-enum DriverStatus {
-  idle,
-  assigned,
-  onTrip,
-}
+enum DriverStatus { idle, assigned, onTrip }
 
 class Driver {
   final String id;
   final String userId;
   final String managerId;
+  final String? name;
+  final String? email;
   final String licenseNumber;
   final DateTime licenseExpiry;
   final String phoneNumber;
@@ -30,6 +28,8 @@ class Driver {
     required this.id,
     required this.userId,
     required this.managerId,
+    required this.name,
+    required this.email,
     required this.licenseNumber,
     required this.licenseExpiry,
     required this.phoneNumber,
@@ -69,8 +69,12 @@ class Driver {
       id: json['id']?.toString() ?? '',
       userId: json['auth_user_id']?.toString() ?? '',
       managerId: json['company_id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Unknown Driver',
+      email: json['email']?.toString() ?? '',
       licenseNumber: json['license_number']?.toString() ?? '',
-      licenseExpiry: DateTime.now().add(const Duration(days: 365)), // Placeholder - not in schema
+      licenseExpiry: DateTime.now().add(
+        const Duration(days: 365),
+      ), // Placeholder - not in schema
       phoneNumber: json['phone']?.toString() ?? '',
       emergencyContact: '', // Not in schema
       status: status,
@@ -81,8 +85,12 @@ class Driver {
           : null,
       totalTrips: json['total_trips'] ?? 0,
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
-      createdAt: DateTime.parse(json['created_at']?.toString() ?? DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(json['updated_at']?.toString() ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+        json['created_at']?.toString() ?? DateTime.now().toIso8601String(),
+      ),
+      updatedAt: DateTime.parse(
+        json['updated_at']?.toString() ?? DateTime.now().toIso8601String(),
+      ),
       user: json['profiles'], // Join with profiles table
       currentVehicle: null,
       currentSchedule: null,
@@ -113,6 +121,8 @@ class Driver {
     String? id,
     String? userId,
     String? managerId,
+    String? name,
+    String? email,
     String? licenseNumber,
     DateTime? licenseExpiry,
     String? phoneNumber,
@@ -133,6 +143,8 @@ class Driver {
       id: id ?? this.id,
       userId: userId ?? this.userId,
       managerId: managerId ?? this.managerId,
+      name: name ?? this.name,
+      email: email ?? this.email,
       licenseNumber: licenseNumber ?? this.licenseNumber,
       licenseExpiry: licenseExpiry ?? this.licenseExpiry,
       phoneNumber: phoneNumber ?? this.phoneNumber,
@@ -151,10 +163,12 @@ class Driver {
     );
   }
 
-  String get fullName => user?['full_name'] ?? 'Unknown Driver';
-  String get email => user?['email'] ?? '';
-  String get currentVehicleNumber => currentVehicle?['registration_number'] ?? 'Not Assigned';
+  String get fullName => name?.isNotEmpty == true ? name! : 'Unknown Driver';
+  String get driverEmail => email ?? '';
+  String get currentVehicleNumber =>
+      currentVehicle?['registration_number'] ?? 'Not Assigned';
   bool get isLicenseValid => licenseExpiry.isAfter(DateTime.now());
-  bool get isAvailable => status == DriverStatus.idle && currentScheduleId == null;
+  bool get isAvailable =>
+      status == DriverStatus.idle && currentScheduleId == null;
   bool get isOnDuty => currentScheduleId != null;
 }

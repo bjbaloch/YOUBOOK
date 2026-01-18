@@ -4,6 +4,7 @@ import '../UI/bus_service_ui.dart';
 import '../UI/available_buses_ui.dart';
 import '../../../screens/passenger/Home/UI/passenger_home_ui.dart';
 import '../../../screens/passenger/Home/Data/passenger_home_data.dart';
+import '../../../core/services/api_service.dart';
 
 class BusServiceLogic {
   static PageRouteBuilder smoothTransition(Widget page) {
@@ -44,14 +45,66 @@ class BusServiceLogic {
     );
   }
 
-  static void navigateToAvailableBuses(
+  static Future<List<Map<String, dynamic>>> fetchAvailableVehicles() async {
+    final apiService = ApiService();
+    return await apiService.getAvailableSchedules(serviceType: 'bus');
+  }
+
+  static Future<void> navigateToAvailableBuses(
     BuildContext context,
     BusServiceData searchData,
-  ) {
-    Navigator.push(
-      context,
-      smoothTransition(AvailableBusesUI(searchData: searchData)),
+  ) async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
     );
+
+    try {
+      final apiService = ApiService();
+
+      // Query schedules for bus service type with location filters
+      final schedules = await apiService.getAvailableSchedules(
+        serviceType: 'bus',
+        fromLocation: searchData.selectedFromLocation,
+        toLocation: searchData.selectedToLocation,
+        travelDate: searchData.departureDate,
+      );
+
+      // Hide loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      // Navigate to available buses screen with real data
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          smoothTransition(AvailableBusesUI(
+            searchData: searchData,
+            schedules: schedules,
+          )),
+        );
+      }
+    } catch (e) {
+      // Hide loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      // Show error message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load available buses: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   static void navigateBackToHome(BuildContext context) {

@@ -1,15 +1,4 @@
- ==========================================
- YOUBOOK Additional Functions & Triggers
- Production-ready automation and business logic
- ==========================================
- Features: Advanced business logic, automated processes, data validation
- ==========================================
 
- ==========================================
- 1. BOOKING MANAGEMENT FUNCTIONS
- ==========================================
-
- Function to create a booking with seat assignment
 -- CREATE OR REPLACE FUNCTION public.create_booking(
 --     p_passenger_id UUID,
 --     p_schedule_id UUID,
@@ -110,7 +99,7 @@
 -- END;
 -- $$ LANGUAGE plpgsql SECURITY DEFINER;
 
- Function to cancel a booking
+-- Function to cancel a booking
 -- CREATE OR REPLACE FUNCTION public.cancel_booking(
 --     p_booking_id UUID,
 --     p_cancelled_by UUID DEFAULT NULL
@@ -195,11 +184,11 @@
 -- END;
 -- $$ LANGUAGE plpgsql SECURITY DEFINER;
 
- ==========================================
- 2. WALLET MANAGEMENT FUNCTIONS
- ==========================================
+--  ==========================================
+--  2. WALLET MANAGEMENT FUNCTIONS
+--  ==========================================
 
- Function to process wallet transaction
+--  Function to process wallet transaction
 -- CREATE OR REPLACE FUNCTION public.process_wallet_transaction(
 --     p_user_id UUID,
 --     p_amount DECIMAL(10,2),
@@ -268,11 +257,11 @@
 -- END;
 -- $$ LANGUAGE plpgsql SECURITY DEFINER;
 
- ==========================================
- 3. SCHEDULE MANAGEMENT FUNCTIONS
- ==========================================
+--  ==========================================
+--  3. SCHEDULE MANAGEMENT FUNCTIONS
+--  ==========================================
 
- Function to create a schedule with automatic seat generation
+--  Function to create a schedule with automatic seat generation
 -- CREATE OR REPLACE FUNCTION public.create_schedule(
 --     p_vehicle_id UUID,
 --     p_route_id UUID,
@@ -341,11 +330,144 @@
 -- END;
 -- $$ LANGUAGE plpgsql SECURITY DEFINER;
 
- ==========================================
- 4. NOTIFICATION FUNCTIONS
- ==========================================
+--  ==========================================
+--  4. DRIVER MANAGEMENT FUNCTIONS
+--  ==========================================
 
- Function to send booking confirmation notification
+-- Function to create a driver user (RPC for manager to create driver accounts)
+CREATE OR REPLACE FUNCTION public.create_driver_user(
+    p_email TEXT,
+    p_password TEXT,
+    p_name TEXT,
+    p_manager_id UUID
+)
+RETURNS TABLE (
+    auth_user_id UUID,
+    driver_id UUID,
+    temp_password TEXT,
+    message TEXT
+) AS $$
+DECLARE
+    v_auth_user_record RECORD;
+    v_driver_id UUID;
+    v_temp_password TEXT := p_password;
+BEGIN
+    -- Create auth user with admin privileges
+    SELECT * INTO v_auth_user_record
+    FROM auth.admin.create_user(
+        email => p_email,
+        password => p_password,
+        email_confirm => true,
+        user_metadata => jsonb_build_object(
+            'full_name', p_name,
+            'role', 'driver'
+        )
+    );
+
+    -- Insert profile (this will be done by trigger, but let's ensure it exists)
+    INSERT INTO public.profiles (
+        id,
+        email,
+        full_name,
+        role,
+        manager_id,
+        is_active
+    ) VALUES (
+        v_auth_user_record.id,
+        p_email,
+        p_name,
+        'driver'::user_role,
+        p_manager_id,
+        true
+    ) ON CONFLICT (id) DO UPDATE SET
+        full_name = EXCLUDED.full_name,
+        role = EXCLUDED.role,
+        manager_id = EXCLUDED.manager_id,
+        updated_at = now();
+
+    -- Create driver record
+    INSERT INTO public.drivers (
+        company_id,
+        auth_user_id,
+        email,
+        name,
+        phone,
+        license_number,
+        current_status
+    ) VALUES (
+        p_manager_id,
+        v_auth_user_record.id,
+        p_email,
+        p_name,
+        '',
+        '',
+        'Idle'::driver_status
+    ) RETURNING id INTO v_driver_id;
+
+    RETURN QUERY SELECT v_auth_user_record.id, v_driver_id, v_temp_password, 'Driver account created successfully.'::TEXT;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- -- Function to create a driver account with auth user (legacy - keep for compatibility)
+-- CREATE OR REPLACE FUNCTION public.create_driver_account(
+--     p_company_id UUID,
+--     p_email TEXT,
+--     p_name TEXT,
+--     p_phone TEXT,
+--     p_license_number TEXT,
+--     p_temp_password TEXT
+-- )
+-- RETURNS TABLE (
+--     driver_id UUID,
+--     auth_user_id UUID,
+--     temp_password TEXT,
+--     message TEXT
+-- ) AS $$
+-- DECLARE
+--     v_auth_user_record RECORD;
+--     v_driver_id UUID;
+-- BEGIN
+--     -- Create auth user with admin privileges
+--     SELECT * INTO v_auth_user_record
+--     FROM auth.admin.create_user(
+--         email => p_email,
+--         password => p_temp_password,
+--         email_confirm => true,
+--         user_metadata => jsonb_build_object(
+--             'full_name', p_name,
+--             'phone', p_phone,
+--             'role', 'driver'
+--         )
+--     );
+
+--     -- Create driver record
+--     INSERT INTO public.drivers (
+--         company_id,
+--         auth_user_id,
+--         email,
+--         name,
+--         phone,
+--         license_number,
+--         current_status
+--     ) VALUES (
+--         p_company_id,
+--         v_auth_user_record.id,
+--         p_email,
+--         p_name,
+--         p_phone,
+--         p_license_number,
+--         'Idle'
+--     ) RETURNING id INTO v_driver_id;
+
+--     RETURN QUERY SELECT v_driver_id, v_auth_user_record.id, p_temp_password, 'Driver account created successfully.'::TEXT;
+-- END;
+-- $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+--  ==========================================
+--  5. NOTIFICATION FUNCTIONS
+--  ==========================================
+
+--  Function to send booking confirmation notification
 -- CREATE OR REPLACE FUNCTION public.send_booking_confirmation(p_booking_id UUID)
 -- RETURNS BOOLEAN AS $$
 -- DECLARE
@@ -397,11 +519,11 @@
 -- END;
 -- $$ LANGUAGE plpgsql SECURITY DEFINER;
 
- ==========================================
- 5. MAINTENANCE TRIGGERS
- ==========================================
+--  ==========================================
+--  5. MAINTENANCE TRIGGERS
+--  ==========================================
 
- Trigger to create maintenance notification when due date approaches
+--  Trigger to create maintenance notification when due date approaches
 -- CREATE OR REPLACE FUNCTION public.check_maintenance_due_dates()
 -- RETURNS TRIGGER AS $$
 -- BEGIN
@@ -441,50 +563,50 @@
 -- END;
 -- $$ LANGUAGE plpgsql;
 
- Create trigger for maintenance due date checking
--- DROP TRIGGER IF EXISTS trigger_maintenance_notifications ON public.vehicle_maintenance;
--- CREATE TRIGGER trigger_maintenance_notifications
---     AFTER INSERT OR UPDATE ON public.vehicle_maintenance
---     FOR EACH ROW EXECUTE PROCEDURE public.check_maintenance_due_dates();
+--  Create trigger for maintenance due date checking
+-- -- DROP TRIGGER IF EXISTS trigger_maintenance_notifications ON public.vehicle_maintenance;
+-- -- CREATE TRIGGER trigger_maintenance_notifications
+-- --     AFTER INSERT OR UPDATE ON public.vehicle_maintenance
+-- --     FOR EACH ROW EXECUTE PROCEDURE public.check_maintenance_due_dates();
 
- ==========================================
- 6. CLEANUP FUNCTIONS
- ==========================================
+--  ==========================================
+--  6. CLEANUP FUNCTIONS
+--  ==========================================
 
- Function to cleanup expired data
--- CREATE OR REPLACE FUNCTION public.cleanup_expired_data()
--- RETURNS TABLE (
---     notifications_cleaned INTEGER,
---     sessions_cleaned INTEGER,
---     locks_released INTEGER
--- ) AS $$
--- DECLARE
---     v_notifications_cleaned INTEGER := 0;
---     v_sessions_cleaned INTEGER := 0;
---     v_locks_released INTEGER := 0;
--- BEGIN
---     -- Clean expired notifications
---     DELETE FROM public.notifications
---     WHERE expires_at IS NOT NULL AND expires_at < CURRENT_TIMESTAMP;
---     GET DIAGNOSTICS v_notifications_cleaned = ROW_COUNT;
+--  Function to cleanup expired data
+-- -- CREATE OR REPLACE FUNCTION public.cleanup_expired_data()
+-- -- RETURNS TABLE (
+-- --     notifications_cleaned INTEGER,
+-- --     sessions_cleaned INTEGER,
+-- --     locks_released INTEGER
+-- -- ) AS $$
+-- -- DECLARE
+-- --     v_notifications_cleaned INTEGER := 0;
+-- --     v_sessions_cleaned INTEGER := 0;
+-- --     v_locks_released INTEGER := 0;
+-- -- BEGIN
+-- --     -- Clean expired notifications
+-- --     DELETE FROM public.notifications
+-- --     WHERE expires_at IS NOT NULL AND expires_at < CURRENT_TIMESTAMP;
+-- --     GET DIAGNOSTICS v_notifications_cleaned = ROW_COUNT;
 
---     -- Clean expired admin sessions
---     UPDATE public.admin_sessions
---     SET is_active = false, logout_time = CURRENT_TIMESTAMP
---     WHERE is_active = true AND expires_at < CURRENT_TIMESTAMP;
---     GET DIAGNOSTICS v_sessions_cleaned = ROW_COUNT;
+-- --     -- Clean expired admin sessions
+-- --     UPDATE public.admin_sessions
+-- --     SET is_active = false, logout_time = CURRENT_TIMESTAMP
+-- --     WHERE is_active = true AND expires_at < CURRENT_TIMESTAMP;
+-- --     GET DIAGNOSTICS v_sessions_cleaned = ROW_COUNT;
 
---     -- Release expired seat locks
---     UPDATE public.seats
---     SET is_locked = false, locked_until = NULL, updated_at = CURRENT_TIMESTAMP
---     WHERE is_locked = true AND locked_until < CURRENT_TIMESTAMP;
---     GET DIAGNOSTICS v_locks_released = ROW_COUNT;
+-- --     -- Release expired seat locks
+-- --     UPDATE public.seats
+-- --     SET is_locked = false, locked_until = NULL, updated_at = CURRENT_TIMESTAMP
+-- --     WHERE is_locked = true AND locked_until < CURRENT_TIMESTAMP;
+-- --     GET DIAGNOSTICS v_locks_released = ROW_COUNT;
 
---     RETURN QUERY SELECT v_notifications_cleaned, v_sessions_cleaned, v_locks_released;
--- END;
--- $$ LANGUAGE plpgsql SECURITY DEFINER;
+-- --     RETURN QUERY SELECT v_notifications_cleaned, v_sessions_cleaned, v_locks_released;
+-- -- END;
+-- -- $$ LANGUAGE plpgsql SECURITY DEFINER;
 
- ==========================================
- Functions and Triggers Setup Complete
- ==========================================
- Next: Run 15_indexes.sql for additional performance optimizations
+--  ==========================================
+--  Functions and Triggers Setup Complete
+--  ==========================================
+--  Next: Run 15_indexes.sql for additional performance optimizations

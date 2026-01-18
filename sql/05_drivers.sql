@@ -1,39 +1,39 @@
---  ==========================================
---  YOUBOOK Driver Management
---  Production-ready driver management tables
---  ==========================================
---  Tables: drivers
---  Features: Driver profiles, licenses, ratings, assignments, performance tracking
---  ==========================================
+ ==========================================
+ YOUBOOK Driver Management
+ Production-ready driver management tables
+ ==========================================
+ Tables: drivers
+ Features: Driver profiles, licenses, ratings, assignments, performance tracking
+ ==========================================
 
---  ==========================================
---  1. DRIVERS TABLE
---  ==========================================
+ ==========================================
+ 1. DRIVERS TABLE
+ ==========================================
 
--- -- Drivers table (extends profiles)
--- -- Drop existing table if it exists with wrong schema
--- DROP TABLE IF EXISTS public.drivers CASCADE;
+-- Drivers table (extends profiles)
+-- Drop existing table if it exists with wrong schema
+DROP TABLE IF EXISTS public.drivers CASCADE;
 
--- -- Create drivers table with correct schema
--- CREATE TABLE public.drivers (
---     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
---     company_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
---     auth_user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
---     email TEXT NOT NULL,
---     name TEXT NOT NULL,
---     license_number TEXT UNIQUE NOT NULL,
---     phone TEXT NOT NULL,
---     photo_url TEXT,
---     current_status driver_status DEFAULT 'Idle'::driver_status NOT NULL,
---     last_active_at TIMESTAMP WITH TIME ZONE,
---     total_trips INTEGER DEFAULT 0,
---     rating DECIMAL(3,2) DEFAULT 0.00,
---     rating_count INTEGER DEFAULT 0,
---     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL,
---     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL,
---     UNIQUE(auth_user_id),
---     UNIQUE(email)
--- );
+-- Create drivers table with correct schema
+CREATE TABLE public.drivers (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    company_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    auth_user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    email TEXT NOT NULL,
+    name TEXT NOT NULL,
+    license_number TEXT UNIQUE NOT NULL,
+    phone TEXT NOT NULL,
+    photo_url TEXT,
+    current_status driver_status DEFAULT 'Idle'::driver_status NOT NULL,
+    last_active_at TIMESTAMP WITH TIME ZONE,
+    total_trips INTEGER DEFAULT 0,
+    rating DECIMAL(3,2) DEFAULT 0.00,
+    rating_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL,
+    UNIQUE(auth_user_id),
+    UNIQUE(email)
+);
 
 -- -- Add indexes for performance
 -- CREATE INDEX IF NOT EXISTS idx_drivers_auth_user_id ON public.drivers(auth_user_id);

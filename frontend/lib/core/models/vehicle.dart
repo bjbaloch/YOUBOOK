@@ -1,15 +1,6 @@
-enum VehicleType {
-  bus,
-  van,
-  miniBus,
-}
+enum VehicleType { bus, van, miniBus }
 
-enum VehicleStatus {
-  active,
-  maintenance,
-  inactive,
-  outOfService,
-}
+enum VehicleStatus { active, maintenance, inactive }
 
 class Vehicle {
   final String id;
@@ -86,8 +77,12 @@ class Vehicle {
           ? DateTime.parse(json['next_maintenance_date'].toString())
           : null,
       totalKm: json['total_km'] ?? 0,
-      createdAt: DateTime.parse(json['created_at']?.toString() ?? DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(json['updated_at']?.toString() ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+        json['created_at']?.toString() ?? DateTime.now().toIso8601String(),
+      ),
+      updatedAt: DateTime.parse(
+        json['updated_at']?.toString() ?? DateTime.now().toIso8601String(),
+      ),
       service: json['services'],
       currentDriver: json['current_driver'],
     );
@@ -163,9 +158,11 @@ class Vehicle {
   }
 
   String get displayName => '$registrationNumber ($make $model)';
-  String get driverName => currentDriver?['full_name'] ?? 'No Driver Assigned';
+  String get driverName => currentDriver?['name'] ?? 'No Driver Assigned';
   String get serviceName => service?['name'] ?? 'Unknown Service';
-  bool get needsMaintenance => nextMaintenanceDate?.isBefore(DateTime.now()) ?? false;
-  bool get isAvailable => status == VehicleStatus.active && currentDriverId == null;
+  bool get needsMaintenance =>
+      nextMaintenanceDate?.isBefore(DateTime.now()) ?? false;
+  bool get isAvailable =>
+      status == VehicleStatus.active && currentDriverId == null;
   bool get isInUse => currentDriverId != null;
 }

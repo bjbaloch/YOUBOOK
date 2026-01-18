@@ -87,47 +87,60 @@ class _WalletPageState extends State<WalletPage> {
           child: Column(
             children: [
               // Wallet Balance Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 20,
-                  horizontal: 16,
-                ),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFF9B44), Color(0xFFFF6433)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+              GestureDetector(
+                onTap: () => _showBalancePopup(context),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 20,
+                    horizontal: 16,
                   ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFF9B44), Color(0xFFFF6433)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Your Wallet Balance",
-                      style: TextStyle(
-                        color: AppColors.hintWhite,
-                        fontSize: 14,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      logic.getFormattedBalance(),
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textWhite,
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            "Your Wallet Balance",
+                            style: TextStyle(
+                              color: AppColors.hintWhite,
+                              fontSize: 14,
+                            ),
+                          ),
+                          Icon(
+                            Icons.visibility,
+                            color: AppColors.hintWhite.withOpacity(0.7),
+                            size: 18,
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      Text(
+                        logic.getFormattedBalance(),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textWhite,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 15),
@@ -150,7 +163,7 @@ class _WalletPageState extends State<WalletPage> {
                       ? null
                       : () => logic.startTopUp(context, () async {
                           if (!mounted) return;
-                          await Navigator.of(context).push(
+                          final result = await Navigator.of(context).push(
                             PageRouteBuilder(
                               pageBuilder: (_, __, ___) =>
                                   const TopupAccountsPage(),
@@ -178,6 +191,11 @@ class _WalletPageState extends State<WalletPage> {
                               ),
                             ),
                           );
+
+                          // Refresh wallet data if top-up was successful
+                          if (result == true && mounted) {
+                            await _initializeWallet();
+                          }
                         }, () => setState(() {})),
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 250),
@@ -353,5 +371,81 @@ class _WalletPageState extends State<WalletPage> {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  void _showBalancePopup(BuildContext context) {
+    final balance = logic.getFormattedBalance();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          content: Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFF9B44), Color(0xFFFF6433)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(
+                        Icons.account_balance_wallet,
+                        color: AppColors.textWhite,
+                        size: 48,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        "Current Balance",
+                        style: TextStyle(
+                          color: AppColors.hintWhite,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        balance,
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textWhite,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  "Tap anywhere to close",
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }

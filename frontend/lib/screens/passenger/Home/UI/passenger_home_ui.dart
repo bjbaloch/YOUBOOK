@@ -7,12 +7,15 @@ import 'package:youbook/features/profile/account/account_page/UI/account_page_ui
 import 'package:youbook/features/support/support_page/UI/help_support_ui.dart';
 import 'package:youbook/features/bus_service/Logic/bus_service_logic.dart';
 import 'package:youbook/features/van_service/Logic/van_service_logic.dart';
+import 'package:youbook/features/bus_service/UI/available_buses_ui.dart';
+import 'package:youbook/features/van_service/UI/available_vans_ui.dart';
 import '../Logic/passenger_home_logic.dart';
 import '../Data/passenger_home_data.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/models/user.dart';
 import '../../../../core/services/profile_storage_service.dart';
+import '../../../../core/services/api_service.dart';
 import '../../Notification/Notific_page/UI/passenger_notifications_ui.dart';
 import '../../../../core/widgets/ads_carousel_widget.dart';
 import '../../side_bar/side_bar_ui.dart';
@@ -308,6 +311,102 @@ class _PassengerHomeUIState extends State<_PassengerHomeContent>
     );
   }
 
+  Future<void> _navigateToAvailableBuses(BuildContext context) async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      final apiService = ApiService();
+      final services = await apiService.getAvailableServices(
+        serviceType: 'bus',
+      );
+
+      // Hide loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      // Navigate to available buses screen with services
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          PassengerHomeLogic.smoothTransition(AvailableBusesUI(
+            services: services,
+          )),
+        );
+      }
+    } catch (e) {
+      // Hide loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      // Show error message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load available buses: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _navigateToAvailableVans(BuildContext context) async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      final apiService = ApiService();
+      final services = await apiService.getAvailableServices(
+        serviceType: 'van',
+      );
+
+      // Hide loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      // Navigate to available vans screen with services
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          PassengerHomeLogic.smoothTransition(AvailableVansUI(
+            services: services,
+          )),
+        );
+      }
+    } catch (e) {
+      // Hide loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      // Show error message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load available vans: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _bottomNav() {
     final cs = Theme.of(context).colorScheme;
     return ClipRRect(
@@ -428,7 +527,7 @@ class _PassengerHomeUIState extends State<_PassengerHomeContent>
                         Expanded(
                           child: _categoryTile(
                             title: "Bus Tickets",
-                            onTap: () => BusServiceLogic.navigateToBusService(context),
+                            onTap: () => _navigateToAvailableBuses(context),
                             icon: widget.data.busIcon,
                           ),
                         ),
@@ -436,7 +535,7 @@ class _PassengerHomeUIState extends State<_PassengerHomeContent>
                         Expanded(
                           child: _categoryTile(
                             title: "Van Tickets",
-                            onTap: () => VanServiceLogic.navigateToVanService(context),
+                            onTap: () => _navigateToAvailableVans(context),
                             icon:
                                 widget.data.vanIcon ??
                                 Icon(

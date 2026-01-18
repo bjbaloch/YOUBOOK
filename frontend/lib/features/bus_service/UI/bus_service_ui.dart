@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/services/api_service.dart';
 import '../Data/bus_service_data.dart';
 import '../Logic/bus_service_logic.dart';
 
@@ -12,6 +13,65 @@ class BusServiceUI extends StatefulWidget {
 
 class _BusServiceUIState extends State<BusServiceUI> {
   final BusServiceData _data = BusServiceData();
+  List<RouteModel> _availableRoutes = [];
+  List<String> _availableOrigins = [];
+  List<String> _availableDestinations = [];
+  bool _isLoadingRoutes = true;
+  bool _isLoadingLocations = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRoutes();
+    _loadLocations();
+  }
+
+  Future<void> _loadRoutes() async {
+    try {
+      final routes = await BusServiceData.getAvailableRoutes();
+      if (mounted) {
+        setState(() {
+          _availableRoutes = routes;
+          _isLoadingRoutes = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading routes: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingRoutes = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadLocations() async {
+    try {
+      final apiService = ApiService();
+
+      // Get locations directly from routes (simpler approach)
+      final routeLocations = await apiService.getRouteLocationsByType(
+        serviceType: 'bus',
+      );
+      final locations = [
+        ...routeLocations['origins']!,
+        ...routeLocations['destinations']!,
+      ].toSet().toList();
+
+      if (locations.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _availableOrigins = locations;
+            _availableDestinations = locations;
+            _isLoadingLocations = false;
+          });
+        }
+        return;
+      }
+    } catch (e) {
+      debugPrint('Error loading route locations: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,10 +127,7 @@ class _BusServiceUIState extends State<BusServiceUI> {
       children: [
         const Text(
           "Trip Type",
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
         Container(
@@ -87,15 +144,19 @@ class _BusServiceUIState extends State<BusServiceUI> {
                   cs,
                   "One Way",
                   _data.selectedTripType == TripType.oneWay,
-                  () => setState(() => _data.selectedTripType = TripType.oneWay),
+                  () =>
+                      setState(() => _data.selectedTripType = TripType.oneWay),
                 ),
               ),
               Expanded(
                 child: _tripTypeButton(
                   cs,
-                  "Round Trip",
+                  "Round Trip (Upcoming)",
                   _data.selectedTripType == TripType.roundTrip,
-                  () => setState(() => _data.selectedTripType = TripType.roundTrip),
+                  () => setState(
+                    () => _data.selectedTripType = TripType.roundTrip,
+                  ),
+                  isDisabled: true,
                 ),
               ),
             ],
@@ -105,21 +166,41 @@ class _BusServiceUIState extends State<BusServiceUI> {
     );
   }
 
-  Widget _tripTypeButton(ColorScheme cs, String label, bool isSelected, VoidCallback onTap) {
+  Widget _tripTypeButton(
+    ColorScheme cs,
+    String label,
+    bool isSelected,
+    VoidCallback onTap, {
+    bool isDisabled = false,
+  }) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: isDisabled
+          ? () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Round trip feature is coming soon!'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          : onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? cs.primary : Colors.transparent,
+          color: isSelected
+              ? cs.primary
+              : (isDisabled ? cs.surface.withOpacity(0.5) : Colors.transparent),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
           label,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: isSelected ? cs.onPrimary : cs.onSurface,
+            color: isSelected
+                ? cs.onPrimary
+                : (isDisabled ? cs.onSurface.withOpacity(0.5) : cs.onSurface),
             fontWeight: FontWeight.w500,
+            fontStyle: isDisabled ? FontStyle.italic : FontStyle.normal,
           ),
         ),
       ),
@@ -131,48 +212,48 @@ class _BusServiceUIState extends State<BusServiceUI> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          "Route",
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+          "Select Route",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<RouteModel>(
+          value: _data.selectedRoute,
+          decoration: InputDecoration(
+            labelText: "Choose Route",
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            filled: true,
+            fillColor: cs.surface,
           ),
+          items: _availableRoutes.map((route) {
+            return DropdownMenuItem<RouteModel>(
+              value: route,
+              child: Text(route.displayName),
+            );
+          }).toList(),
+          onChanged: (route) => setState(() {
+            _data.selectedRoute = route;
+            if (route != null) {
+              _data.selectedFromLocation = route.fromCity;
+              _data.selectedToLocation = route.toCity;
+            } else {
+              _data.selectedFromLocation = null;
+              _data.selectedToLocation = null;
+            }
+          }),
         ),
-        const SizedBox(height: 12),
-        _citySelector(
-          cs,
-          "From",
-          _data.selectedFromCity,
-          (city) => setState(() => _data.selectedFromCity = city),
-        ),
-        const SizedBox(height: 12),
-        _citySelector(
-          cs,
-          "To",
-          _data.selectedToCity,
-          (city) => setState(() => _data.selectedToCity = city),
-        ),
+        if (_data.selectedRoute != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            "Selected Route: ${_data.selectedRoute!.displayName}",
+            style: TextStyle(
+              fontSize: 14,
+              color: cs.onSurface.withOpacity(0.7),
+            ),
+          ),
+        ],
       ],
-    );
-  }
-
-  Widget _citySelector(ColorScheme cs, String label, String? selectedCity, ValueChanged<String?> onChanged) {
-    return DropdownButtonFormField<String>(
-      value: selectedCity,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        filled: true,
-        fillColor: cs.surface,
-      ),
-      items: BusServiceData.availableCities.map((city) {
-        return DropdownMenuItem(
-          value: city,
-          child: Text(city),
-        );
-      }).toList(),
-      onChanged: onChanged,
     );
   }
 
@@ -182,10 +263,7 @@ class _BusServiceUIState extends State<BusServiceUI> {
       children: [
         const Text(
           "Travel Dates",
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
         Row(
@@ -215,11 +293,18 @@ class _BusServiceUIState extends State<BusServiceUI> {
     );
   }
 
-  Widget _datePicker(ColorScheme cs, String label, DateTime? selectedDate, ValueChanged<DateTime?> onChanged) {
+  Widget _datePicker(
+    ColorScheme cs,
+    String label,
+    DateTime? selectedDate,
+    ValueChanged<DateTime?> onChanged,
+  ) {
     return InkWell(
       onTap: () async {
         final now = DateTime.now();
-        final maxDate = now.add(const Duration(days: 20)); // Buses available for 20 days only
+        final maxDate = now.add(
+          const Duration(days: 20),
+        ); // Buses available for 20 days only
         final date = await BusServiceLogic.selectDate(
           context,
           selectedDate ?? now,
@@ -233,9 +318,7 @@ class _BusServiceUIState extends State<BusServiceUI> {
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: label,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           filled: true,
           fillColor: cs.surface,
           suffixIcon: Icon(Icons.calendar_today, color: cs.primary),
@@ -245,7 +328,9 @@ class _BusServiceUIState extends State<BusServiceUI> {
               ? BusServiceLogic.formatDate(selectedDate)
               : "Select date",
           style: TextStyle(
-            color: selectedDate != null ? cs.onSurface : cs.onSurface.withOpacity(0.6),
+            color: selectedDate != null
+                ? cs.onSurface
+                : cs.onSurface.withOpacity(0.6),
           ),
         ),
       ),
@@ -255,9 +340,7 @@ class _BusServiceUIState extends State<BusServiceUI> {
   Widget _mainBookingCard(ColorScheme cs) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -273,8 +356,6 @@ class _BusServiceUIState extends State<BusServiceUI> {
       ),
     );
   }
-
-
 
   Widget _searchButton(ColorScheme cs) {
     return SizedBox(
@@ -294,10 +375,7 @@ class _BusServiceUIState extends State<BusServiceUI> {
         ),
         child: const Text(
           "Show Available Buses",
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
     );

@@ -41,11 +41,19 @@ class PassengerManifestsData {
       final schedulesData = await _apiService.getManagerSchedules();
       schedules = schedulesData.map((json) => Schedule.fromJson(json)).toList();
       // Filter to only show schedules with passengers (have bookings)
-      schedules = schedules.where((s) => s.availableSeats < s.totalSeats).toList();
+      schedules = schedules.where((s) {
+        try {
+          return s.availableSeats < s.totalSeats;
+        } catch (e) {
+          // Skip schedules with invalid data
+          return false;
+        }
+      }).toList();
       schedules.sort((a, b) => a.departureTime.compareTo(b.departureTime));
     } catch (e) {
+      debugPrint('Error loading schedules: $e');
       schedules = [];
-      rethrow;
+      // Don't rethrow - just show empty state
     } finally {
       isLoading = false;
     }
@@ -56,7 +64,9 @@ class PassengerManifestsData {
 
     try {
       final manifestData = await _apiService.getPassengerManifests(scheduleId);
-      final passengers = manifestData.map((json) => ManifestPassenger.fromJson(json)).toList();
+      final passengers = manifestData
+          .map((json) => ManifestPassenger.fromJson(json))
+          .toList();
       manifests[scheduleId] = passengers;
     } catch (e) {
       manifests[scheduleId] = [];

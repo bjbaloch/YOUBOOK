@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/success_dialog.dart';
+import '../../../../core/services/api_service.dart';
 import '../Data/topup_data.dart';
 
 class TopupLogic {
   final TopupData data = TopupData();
+  final ApiService _apiService = ApiService();
 
   void updateTopupAmount(VoidCallback updateUI) {
     data.topupAmount = double.tryParse(data.amountController.text) ?? 0.0;
@@ -53,21 +55,38 @@ class TopupLogic {
       isError: false,
     );
 
-    // Simulate payment processing delay
+    // Process payment and add to wallet
     Future.delayed(const Duration(seconds: 2), () async {
-      if (context.mounted) {
-        // Show success dialog
-        await SuccessDialog.show(
-          context,
-          title: 'Payment Successful!',
-          message:
-              'Rs. ${data.topupAmount.toStringAsFixed(2)} has been added to your YouBook Wallet.',
-          icon: Icons.account_balance_wallet,
-          iconBackgroundColor: AppColors.circleGreen,
+      try {
+        // Add money to wallet via API
+        final success = await _apiService.addMoneyToWallet(
+          data.topupAmount,
+          description: 'Top-up via $method',
         );
 
-        // Navigate back after dialog is dismissed
+        if (success && context.mounted) {
+          // Show success dialog
+          await SuccessDialog.show(
+            context,
+            title: 'Payment Successful!',
+            message:
+                'Rs. ${data.topupAmount.toStringAsFixed(2)} has been added to your YouBook Wallet.',
+            icon: Icons.account_balance_wallet,
+            iconBackgroundColor: AppColors.circleGreen,
+          );
+
+          // Navigate back after dialog is dismissed
+          if (context.mounted) {
+            Navigator.of(context).pop(true); // Pass true to indicate success
+          }
+        } else if (context.mounted) {
+          // Show error if wallet update failed
+          showSnackBar(context, 'Failed to update wallet balance. Please contact support.');
+          Navigator.of(context).pop();
+        }
+      } catch (e) {
         if (context.mounted) {
+          showSnackBar(context, 'Payment failed: ${e.toString()}');
           Navigator.of(context).pop();
         }
       }

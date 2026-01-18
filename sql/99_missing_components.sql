@@ -138,6 +138,19 @@
 --     WHEN others THEN null;
 -- END $$;
 
+-- -- Fix vehicles current_driver_id foreign key to reference drivers instead of profiles
+-- DO $$
+-- BEGIN
+--     -- Drop the existing foreign key constraint
+--     ALTER TABLE public.vehicles DROP CONSTRAINT IF EXISTS vehicles_current_driver_id_fkey;
+
+--     -- Add the correct foreign key constraint to reference drivers.id
+--     ALTER TABLE public.vehicles ADD CONSTRAINT vehicles_current_driver_id_fkey
+--     FOREIGN KEY (current_driver_id) REFERENCES public.drivers(id) ON DELETE SET NULL;
+-- EXCEPTION
+--     WHEN others THEN null;
+-- END $$;
+
 -- -- ==========================================
 -- -- SETUP COMPLETE
 -- -- ==========================================

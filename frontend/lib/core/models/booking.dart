@@ -41,28 +41,35 @@ class BookingModel {
   }) : id = id ?? const Uuid().v4();
 
   factory BookingModel.fromJson(Map<String, dynamic> json) {
+    // Handle nested structure from API
+    final schedules = json['schedules'] as Map<String, dynamic>? ?? {};
+    final vehicles = schedules['vehicles'] as Map<String, dynamic>? ?? {};
+    final routes = schedules['routes'] as Map<String, dynamic>? ?? {};
+    final services = vehicles['services'] as Map<String, dynamic>? ?? {};
+
+    // Get booking seats for seat information
+    final bookingSeats = json['booking_seats'] as List<dynamic>? ?? [];
+    final seatNumbers = bookingSeats.map((bs) => bs['seat_number'].toString()).join(', ');
+
     return BookingModel(
       id: json['id']?.toString(),
       passengerId: json['passenger_id']?.toString() ?? '',
-      routeId: json['route_id']?.toString() ?? '',
-      routeName: json['route_name']?.toString(),
-      vehicleType: json['vehicle_type'] == 'van' ? VehicleType.van : VehicleType.bus,
-      status: BookingStatus.values.firstWhere(
-        (e) => e.toString() == 'BookingStatus.${json['status']}',
-        orElse: () => BookingStatus.pending,
-      ),
-      bookingDate: json['booking_date'] != null
-          ? DateTime.parse(json['booking_date'].toString())
+      routeId: routes['id']?.toString() ?? json['route_id']?.toString() ?? '',
+      routeName: routes['name']?.toString() ?? services['route_name']?.toString(),
+      vehicleType: vehicles['type'] == 'van' ? VehicleType.van : VehicleType.bus,
+      status: _parseBookingStatus(json['status']?.toString() ?? json['is_paid']?.toString()),
+      bookingDate: json['created_at'] != null
+          ? DateTime.parse(json['created_at'].toString())
           : DateTime.now(),
       travelDate: json['travel_date'] != null
           ? DateTime.parse(json['travel_date'].toString())
           : DateTime.now(),
-      departureTime: json['departure_time']?.toString(),
-      arrivalTime: json['arrival_time']?.toString(),
-      fare: (json['fare'] as num?)?.toDouble() ?? 0.0,
-      seatNumber: json['seat_number']?.toString(),
-      driverName: json['driver_name']?.toString(),
-      vehicleNumber: json['vehicle_number']?.toString(),
+      departureTime: schedules['departure_time']?.toString(),
+      arrivalTime: schedules['arrival_time']?.toString(),
+      fare: (json['total_price'] as num?)?.toDouble() ?? 0.0,
+      seatNumber: seatNumbers.isNotEmpty ? seatNumbers : null,
+      driverName: 'To be assigned', // Could be enhanced to get actual driver
+      vehicleNumber: vehicles['vehicle_number']?.toString(),
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'].toString())
           : null,
@@ -70,6 +77,29 @@ class BookingModel {
           ? DateTime.parse(json['updated_at'].toString())
           : null,
     );
+  }
+
+  static BookingStatus _parseBookingStatus(String? status) {
+    if (status == null) return BookingStatus.pending;
+
+    // Handle boolean is_paid field
+    if (status == 'true') return BookingStatus.confirmed;
+    if (status == 'false') return BookingStatus.pending;
+
+    // Handle status string
+    switch (status.toLowerCase()) {
+      case 'confirmed':
+      case 'paid':
+        return BookingStatus.confirmed;
+      case 'cancelled':
+        return BookingStatus.cancelled;
+      case 'completed':
+        return BookingStatus.completed;
+      case 'pending':
+      case 'unpaid':
+      default:
+        return BookingStatus.pending;
+    }
   }
 
   Map<String, dynamic> toJson() {

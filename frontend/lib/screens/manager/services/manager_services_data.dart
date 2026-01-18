@@ -1,46 +1,36 @@
 part of 'manager_services_screen.dart';
 
 class ManagerServicesData {
-  List<Service> services = [];
-  bool isLoading = false;
-  final ApiService _apiService = ApiService();
+  final ManagerDataService _dataService;
+
+  ManagerServicesData(this._dataService);
+
+  List<Service> get services => _dataService.services;
+  bool get isLoading => _dataService.isLoadingServices;
 
   Future<void> loadServices() async {
-    isLoading = true;
-    try {
-      final servicesData = await _apiService.getManagerServices();
-      services = servicesData.map((json) => Service.fromJson(json)).toList();
-    } catch (e) {
-      // On error, keep empty list
-      services = [];
-      rethrow;
-    } finally {
-      isLoading = false;
-    }
+    await _dataService.loadServices();
   }
 
   void addService(Service service) {
-    services.add(service);
+    // Services are managed centrally, this method kept for compatibility
+    // Actual addition happens through API calls in the service
   }
 
-  void updateService(Service updatedService) {
-    final index = services.indexWhere((s) => s.id == updatedService.id);
-    if (index != -1) {
-      services[index] = updatedService;
-      // Trigger a UI update if needed
-    }
+  Future<void> updateService(String serviceId, Map<String, dynamic> data) async {
+    await _dataService.updateService(serviceId, data);
   }
 
   void deleteService(String serviceId) {
-    services.removeWhere((s) => s.id == serviceId);
+    // Services are managed centrally, deletion happens through API
   }
 
   Future<void> refreshServices() async {
-    await loadServices();
+    await _dataService.loadServices();
   }
 
   List<Service> getActiveServices() {
-    return services.where((s) => s.status == ServiceStatus.active).toList();
+    return _dataService.getActiveServices();
   }
 
   List<Service> getPausedServices() {

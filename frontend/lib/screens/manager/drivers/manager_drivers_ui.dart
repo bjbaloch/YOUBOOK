@@ -36,7 +36,15 @@ Widget _buildDriversSummary(_ManagerDriversScreenState state) {
     margin: const EdgeInsets.symmetric(horizontal: 16),
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: cs.surface,
+      //color: cs.surface,
+      gradient: LinearGradient(
+        colors: [
+          AppColors.lightSeaGreen.withOpacity(0.6),
+          AppColors.lightSeaGreen.withOpacity(0.04),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
       borderRadius: BorderRadius.circular(12),
       boxShadow: [
         BoxShadow(
@@ -190,7 +198,7 @@ Widget _buildDriverCard(_ManagerDriversScreenState state, Driver driver) {
                         ),
                       ),
                       Text(
-                        driver.email,
+                        driver.email ?? 'No email',
                         style: TextStyle(
                           fontSize: 14,
                           color: cs.onSurface.withOpacity(0.7),
@@ -314,29 +322,97 @@ Widget _buildDriverCard(_ManagerDriversScreenState state, Driver driver) {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton.icon(
-                  onPressed: () {
-                    // TODO: Edit driver
-                    ScaffoldMessenger.of(state.context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Edit Driver - Coming Soon!'),
+                  onPressed: () async {
+                    // Edit driver
+                    final result = await Navigator.of(state.context).push<bool>(
+                      MaterialPageRoute(
+                        builder: (_) => EditDriverScreen(driver: driver),
                       ),
                     );
+
+                    // If driver was updated successfully, refresh the list
+                    if (result == true && state.mounted) {
+                      await state._refreshDrivers();
+                    }
                   },
                   icon: const Icon(Icons.edit, size: 16),
                   label: const Text('Edit'),
                 ),
                 const SizedBox(width: 8),
                 TextButton.icon(
-                  onPressed: () {
-                    // TODO: Assign vehicle
-                    ScaffoldMessenger.of(state.context).showSnackBar(
-                      SnackBar(
-                        content: Text('Assign Vehicle: ${driver.fullName}'),
-                      ),
+                  onPressed: () async {
+                    // Assign vehicle
+                    final result = await showDialog<bool>(
+                      context: state.context,
+                      builder: (_) => AssignVehicleDialog(driver: driver),
                     );
+
+                    // If vehicle assignment changed, refresh the list
+                    if (result == true && state.mounted) {
+                      await state._refreshDrivers();
+                    }
                   },
                   icon: const Icon(Icons.directions_car, size: 16),
                   label: const Text('Assign'),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () async {
+                    // Confirm delete
+                    final confirmed = await showDialog<bool>(
+                      context: state.context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Delete Driver'),
+                        content: Text(
+                          'Are you sure you want to delete ${driver.fullName}? This action cannot be undone.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(true),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.red,
+                            ),
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirmed == true) {
+                      try {
+                        await state._data.apiService.deleteDriver(driver.id);
+
+                        if (state.mounted) {
+                          ScaffoldMessenger.of(state.context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                '${driver.fullName} deleted successfully!',
+                              ),
+                            ),
+                          );
+                          await state._refreshDrivers();
+                        }
+                      } catch (e) {
+                        if (state.mounted) {
+                          ScaffoldMessenger.of(state.context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Failed to delete driver: ${e.toString().replaceFirst('Exception: ', '')}',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.delete, size: 20),
+                  color: Colors.red,
+                  tooltip: 'Delete Driver',
                 ),
               ],
             ),

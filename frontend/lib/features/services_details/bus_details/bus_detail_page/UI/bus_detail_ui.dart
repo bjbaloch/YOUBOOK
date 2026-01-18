@@ -42,10 +42,6 @@ class _AddBusDetailsScreenState extends State<AddBusDetailsScreen> {
     super.dispose();
   }
 
-
-
-
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -125,16 +121,30 @@ class _AddBusDetailsScreenState extends State<AddBusDetailsScreen> {
             ),
           ),
         ),
-        bottomNavigationBar: Padding(
+        bottomNavigationBar: Container(
           padding: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            color: cs.surface,
+            boxShadow: [
+              BoxShadow(
+                color: cs.shadow.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, -2),
+              ),
+            ],
+          ),
           child: ElevatedButton(
             onPressed: () {
               if (!(_formKey.currentState?.validate() ?? false)) return;
               if (!data.isAgreedToTerms) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please check the agreement.'),
+                  SnackBar(
+                    content: const Text('Please check the agreement.'),
                     backgroundColor: AppColors.error,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 );
                 return;
@@ -143,14 +153,20 @@ class _AddBusDetailsScreenState extends State<AddBusDetailsScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.accentOrange,
-              minimumSize: const Size(double.infinity, 50),
+              minimumSize: const Size(double.infinity, 56),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10.0),
+                borderRadius: BorderRadius.circular(16.0),
               ),
+              elevation: 4,
+              shadowColor: AppColors.accentOrange.withOpacity(0.3),
             ),
             child: const Text(
               'Save Bus Details',
-              style: TextStyle(fontSize: 16, color: AppColors.textWhite),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textWhite,
+              ),
             ),
           ),
         ),
@@ -320,16 +336,27 @@ class _CustomInputFieldState extends State<CustomInputField> {
 }
 
 Widget _sectionContainer({required List<Widget> children}) {
-  return Container(
-    padding: const EdgeInsets.all(12.0),
-    margin: const EdgeInsets.only(bottom: 12.0),
-    decoration: BoxDecoration(
-      color: AppColors.lightSeaGreen.withOpacity(0.5),
-      borderRadius: BorderRadius.circular(10.0),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: children,
+  return Card(
+    elevation: 4,
+    margin: const EdgeInsets.only(bottom: 16.0),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+    child: Container(
+      padding: const EdgeInsets.all(20.0),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16.0),
+        gradient: LinearGradient(
+          colors: [
+            AppColors.lightSeaGreen.withOpacity(0.9),
+            AppColors.lightSeaGreen.withOpacity(0.04),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
     ),
   );
 }
@@ -385,12 +412,13 @@ class _BusInformationSection extends StatelessWidget {
   }
 }
 
-
-
 class _ProprietorInformationSection extends StatelessWidget {
   final BusFormData data;
   final GlobalKey<FormState> formKey;
-  const _ProprietorInformationSection({required this.data, required this.formKey});
+  const _ProprietorInformationSection({
+    required this.data,
+    required this.formKey,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -722,7 +750,9 @@ class _SeatLayoutSection extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  isSeatLayoutConfigured ? Icons.check_circle : Icons.event_seat,
+                  isSeatLayoutConfigured
+                      ? Icons.check_circle
+                      : Icons.event_seat,
                   color: isSeatLayoutConfigured ? Colors.green : cs.primary,
                 ),
                 const SizedBox(width: 12),

@@ -14,10 +14,66 @@ class ServiceConfirmationLogic {
     setLoading();
 
     try {
-      // If we have form data, save it to database
+      // If we have form data, save service AND route in a dual-insert transaction
       if (formData != null) {
         final apiService = ApiService();
-        await apiService.createService(formData);
+
+        // Step 1: Save the Service
+        final serviceResult = await apiService.createService(formData);
+        final serviceId = serviceResult['id'] as String;
+
+        // Step 2: Save the Route (link it to the service)
+        try {
+          // Get location values with fallbacks
+          final fromLocation = formData['from']?.toString().trim() ?? '';
+          final toLocation = formData['to']?.toString().trim() ?? '';
+
+          // Provide defaults if locations are empty
+          final startCity = fromLocation.isNotEmpty
+              ? fromLocation
+              : 'Unknown Start';
+          final endCity = toLocation.isNotEmpty ? toLocation : 'Unknown End';
+
+          // Generate route name from locations
+          final routeName = '$startCity → $endCity';
+
+          final routePayload = {
+            'service_id': serviceId,
+            'name': routeName, // Required NOT NULL field
+            'service_type':
+                serviceResult['type'] ?? 'bus', // Get from created service
+            'start_location': {
+              'city': startCity,
+              'address': startCity,
+              'province': '',
+              'latitude': 0.0,
+              'longitude': 0.0,
+            },
+            'end_location': {
+              'city': endCity,
+              'address': endCity,
+              'province': '',
+              'latitude': 0.0,
+              'longitude': 0.0,
+            },
+            'distance_km': 0.0, // Default, can be calculated later
+            'estimated_duration_minutes': 60, // Default 1 hour
+            'waypoints': [], // Empty array for intermediate points
+            'road_type': 'highway',
+            'traffic_condition': 'normal',
+            'is_active': true,
+          };
+
+          await apiService.createRoute(routePayload);
+        } catch (routeError) {
+          // Rollback: Delete the service if route creation fails
+          try {
+            await apiService.deleteService(serviceId);
+          } catch (deleteError) {
+            debugPrint('Failed to rollback service deletion: $deleteError');
+          }
+          throw Exception('Failed to create route for service: $routeError');
+        }
       }
 
       await Future.delayed(ServiceConfirmationData.loadingDelay);
@@ -35,17 +91,14 @@ class ServiceConfirmationLogic {
       Navigator.of(parentContext, rootNavigator: true).pop();
 
       // Show error message
-      Future.delayed(
-        ServiceConfirmationData.successPopupDelay,
-        () {
-          ScaffoldMessenger.of(parentContext).showSnackBar(
-            SnackBar(
-              content: Text('Failed to save service: $e'),
-              backgroundColor: AppColors.error,
-            ),
-          );
-        },
-      );
+      Future.delayed(ServiceConfirmationData.successPopupDelay, () {
+        ScaffoldMessenger.of(parentContext).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save service: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      });
     }
   }
 
@@ -94,10 +147,7 @@ class ServiceConfirmationLogic {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
-            : const Text(
-                "Confirm",
-                style: TextStyle(color: Colors.white),
-              ),
+            : const Text("Confirm", style: TextStyle(color: Colors.white)),
       ),
     ];
   }

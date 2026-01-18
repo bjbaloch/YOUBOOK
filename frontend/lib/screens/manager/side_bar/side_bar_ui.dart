@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:youbook/features/profile/account/account_page/UI/account_page_ui.dart';
 import 'package:youbook/features/support/support_page/UI/help_support_ui.dart';
 import 'package:youbook/features/wallet_section/youbook_wallet/UI/wallet_ui.dart';
@@ -7,8 +8,11 @@ import '../Home/Data/manager_home_data.dart';
 import '../Notification/Notific_page/UI/manager_notifications_ui.dart';
 import '../wallet/manager_wallet_screen.dart';
 import '../services/manager_services_screen.dart';
+import '../schedules/manage_schedules_screen.dart';
+import '../drivers/manager_drivers_screen.dart';
+import '../manifests/passenger_manifests_screen.dart';
+import '../vehicles/track_vehicles_screen.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/services/profile_storage_service.dart';
 import '../../../../core/widgets/logout_dialog.dart';
 
 class ManagerSidebarDrawer extends StatefulWidget {
@@ -45,17 +49,38 @@ class _ManagerSidebarDrawerState extends State<ManagerSidebarDrawer> {
   }
 
   Future<void> _loadUserProfile() async {
+    // Skip loading if data is already cached
+    if (_displayName != null) return;
+
     try {
-      final accountData = await ProfileStorageService.getCombinedProfileData();
-      if (mounted) {
-        setState(() {
-          _displayName = accountData.displayName;
-          _email = accountData.email;
-          _avatarUrl = accountData.avatarUrl;
-        });
+      // First try to get from Supabase auth user
+      final supabase = Supabase.instance.client;
+      final user = supabase.auth.currentUser;
+
+      if (user != null) {
+        // Get profile data from Supabase
+        final profileResponse = await supabase
+            .from('profiles')
+            .select('full_name, email')
+            .eq('id', user.id)
+            .single();
+
+        if (mounted) {
+          setState(() {
+            _displayName =
+                profileResponse['full_name'] ??
+                user.userMetadata?['full_name'] ??
+                'Manager';
+            _email =
+                profileResponse['email'] ?? user.email ?? 'manager@email.com';
+            _avatarUrl = user.userMetadata?['avatar_url'];
+          });
+        }
+        return;
       }
     } catch (e) {
       debugPrint('Error loading user profile for manager sidebar: $e');
+      // Keep default values on error
     }
   }
 
@@ -209,7 +234,7 @@ class _ManagerSidebarDrawerState extends State<ManagerSidebarDrawer> {
       borderRadius: BorderRadius.circular(8),
       onTap: () {
         Navigator.of(context).pop();
-        Navigator.pushReplacement(context, _smoothRoute(page));
+        Navigator.push(context, _smoothRoute(page));
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -268,30 +293,22 @@ class _ManagerSidebarDrawerState extends State<ManagerSidebarDrawer> {
                           _navItem(
                             icon: Icons.schedule_rounded,
                             label: 'Manage Schedules',
-                            page: const PlaceholderManagerScreen(
-                              title: 'Manage Schedules',
-                            ),
+                            page: const ManageSchedulesScreen(),
                           ),
                           _navItem(
                             icon: Icons.people_rounded,
                             label: 'Manage Drivers',
-                            page: const PlaceholderManagerScreen(
-                              title: 'Manage Drivers',
-                            ),
+                            page: const ManagerDriversScreen(),
                           ),
                           _navItem(
                             icon: Icons.list_alt_rounded,
                             label: 'Passenger Manifests',
-                            page: const PlaceholderManagerScreen(
-                              title: 'Passenger Manifests',
-                            ),
+                            page: const PassengerManifestsScreen(),
                           ),
                           _navItem(
                             icon: Icons.location_on_rounded,
                             label: 'Track Vehicles',
-                            page: const PlaceholderManagerScreen(
-                              title: 'Track Vehicles',
-                            ),
+                            page: const TrackVehiclesScreen(),
                           ),
                           _navItem(
                             icon: Icons.account_balance_wallet_rounded,

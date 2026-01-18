@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../core/theme/app_colors.dart';
 import '../Data/seat_selection_data.dart';
+import '../UI/booking_receipt_ui.dart';
 import '../../../core/models/booking.dart';
+import '../../../core/services/api_service.dart';
 
 class PaymentUI extends StatefulWidget {
   final SeatSelectionData seatData;
@@ -93,7 +94,9 @@ class _PaymentUIState extends State<PaymentUI> {
           ),
         ),
         body: SafeArea(
-          child: _isProcessing ? _buildProcessingScreen(cs) : _buildPaymentScreen(cs),
+          child: _isProcessing
+              ? _buildProcessingScreen(cs)
+              : _buildPaymentScreen(cs),
         ),
       ),
     );
@@ -111,11 +114,7 @@ class _PaymentUIState extends State<PaymentUI> {
               color: cs.primary.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              Icons.payment,
-              color: cs.primary,
-              size: 40,
-            ),
+            child: Icon(Icons.payment, color: cs.primary, size: 40),
           ),
           const SizedBox(height: 24),
           Text(
@@ -165,7 +164,9 @@ class _PaymentUIState extends State<PaymentUI> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                ..._paymentMethods.map((method) => _paymentMethodCard(method, cs)),
+                ..._paymentMethods.map(
+                  (method) => _paymentMethodCard(method, cs),
+                ),
               ],
             ),
           ),
@@ -178,9 +179,7 @@ class _PaymentUIState extends State<PaymentUI> {
   Widget _bookingSummaryCard(ColorScheme cs) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -204,8 +203,14 @@ class _PaymentUIState extends State<PaymentUI> {
             _summaryRow('Route', widget.routeName),
             _summaryRow('Date', _formatDate(widget.travelDate)),
             _summaryRow('Time', widget.departureTime),
-            _summaryRow('Seats', widget.seatData.selectedSeatNumbers.join(', ')),
-            _summaryRow('Vehicle Type', widget.seatData.vehicleType == VehicleType.bus ? 'Bus' : 'Van'),
+            _summaryRow(
+              'Seats',
+              widget.seatData.selectedSeatNumbers.join(', '),
+            ),
+            _summaryRow(
+              'Vehicle Type',
+              widget.seatData.vehicleType == VehicleType.bus ? 'Bus' : 'Van',
+            ),
             const Divider(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -242,17 +247,11 @@ class _PaymentUIState extends State<PaymentUI> {
         children: [
           Text(
             '$label:',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -289,16 +288,16 @@ class _PaymentUIState extends State<PaymentUI> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: method['logo'] != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: Image.asset(
-                        method['logo'],
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                          Icon(method['icon'], color: cs.primary, size: 20),
-                      ),
-                    )
-                  : Icon(method['icon'], color: cs.primary, size: 20),
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.asset(
+                          method['logo'],
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Icon(method['icon'], color: cs.primary, size: 20),
+                        ),
+                      )
+                    : Icon(method['icon'], color: cs.primary, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -337,7 +336,8 @@ class _PaymentUIState extends State<PaymentUI> {
               Radio<String>(
                 value: method['id'],
                 groupValue: _selectedPaymentMethod,
-                onChanged: (value) => setState(() => _selectedPaymentMethod = value!),
+                onChanged: (value) =>
+                    setState(() => _selectedPaymentMethod = value!),
                 activeColor: cs.primary,
               ),
             ],
@@ -392,7 +392,10 @@ class _PaymentUIState extends State<PaymentUI> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: hasEnoughBalance ? cs.primary : Colors.grey,
                 foregroundColor: cs.onPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -414,26 +417,165 @@ class _PaymentUIState extends State<PaymentUI> {
   void _processPayment() async {
     setState(() => _isProcessing = true);
 
-    // Simulate payment processing
-    await Future.delayed(const Duration(seconds: 3));
+    try {
+      final apiService = ApiService();
 
-    if (mounted) {
-      setState(() => _isProcessing = false);
-      _showPaymentSuccess();
+      if (_selectedPaymentMethod == 'wallet') {
+        // Check wallet balance
+        final walletBalance = await apiService.getWalletBalance();
+        if (walletBalance < widget.totalAmount) {
+          throw Exception('Insufficient wallet balance');
+        }
+
+        // Deduct from wallet
+        await apiService.addMoneyToWallet(
+          -widget.totalAmount,
+          description: 'Bus ticket payment',
+        );
+      } else {
+        // Simulate external payment processing (EasyPaisa/JazzCash/Card)
+        await Future.delayed(const Duration(seconds: 2));
+        // In real app, integrate with payment gateways
+      }
+
+      // Create booking record
+      await _createBookingRecord();
+
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        _showPaymentSuccess();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
-  void _showPaymentSuccess() {
-    // TODO: Navigate to booking receipt
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Payment successful! (Receipt screen to be implemented)'),
-        backgroundColor: Colors.green,
-      ),
-    );
+  Future<void> _createBookingRecord() async {
+    final apiService = ApiService();
 
-    // For now, pop back to home
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    // Create booking
+    final bookingData = {
+      'passenger_id': apiService.supabase.auth.currentUser!.id,
+      'schedule_id': widget.seatData.busId,
+      'total_price': widget.totalAmount,
+      'travel_date': widget.travelDate.toIso8601String().split('T')[0],
+      'status': 'confirmed',
+      'is_paid': true,
+      'payment_method': _selectedPaymentMethod,
+      'payment_reference': 'TXN_${DateTime.now().millisecondsSinceEpoch}',
+    };
+
+    final bookingResponse = await apiService.supabase
+        .from('bookings')
+        .insert(bookingData)
+        .select()
+        .single();
+
+    final bookingId = bookingResponse['id'];
+
+    // Create booking seats
+    final seatDataList = widget.seatData.selectedSeatNumbers.map((seatNumber) {
+      return {
+        'booking_id': bookingId,
+        'schedule_id': widget.seatData.busId,
+        'seat_number': seatNumber.toString(),
+      };
+    }).toList();
+
+    await apiService.supabase.from('booking_seats').insert(seatDataList);
+
+    // Unlock seats (they are now booked)
+    await _unlockSeats();
+  }
+
+  Future<void> _unlockSeats() async {
+    final apiService = ApiService();
+
+    // Get vehicle ID
+    final scheduleResponse = await apiService.supabase
+        .from('schedules')
+        .select('vehicle_id')
+        .eq('id', widget.seatData.busId)
+        .single();
+
+    final vehicleId = scheduleResponse['vehicle_id'];
+
+    // Unlock the seats
+    for (final seatNumber in widget.seatData.selectedSeatNumbers) {
+      await apiService.supabase
+          .from('seats')
+          .update({
+            'is_locked': false,
+            'locked_until': null,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('vehicle_id', vehicleId)
+          .eq('seat_number', seatNumber.toString());
+    }
+  }
+
+  void _showPaymentSuccess() async {
+    try {
+      // Get booking details for receipt
+      final apiService = ApiService();
+      final bookingResponse = await apiService.supabase
+          .from('bookings')
+          .select('*, schedules(*, vehicles(*), routes(*))')
+          .eq('passenger_id', apiService.supabase.auth.currentUser!.id)
+          .eq('schedule_id', widget.seatData.busId)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .single();
+
+      final schedule = bookingResponse['schedules'] ?? {};
+      final vehicle = schedule['vehicles'] ?? {};
+      final route = schedule['routes'] ?? {};
+
+      // Navigate to receipt screen
+      if (context.mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BookingReceiptUI(
+              seatData: widget.seatData,
+              totalAmount: widget.totalAmount,
+              routeName: route['name']?.toString() ?? widget.routeName,
+              travelDate: widget.travelDate,
+              departureTime: widget.departureTime,
+              arrivalTime: schedule['arrival_time']?.toString() ?? 'N/A',
+              vehicleNumber: vehicle['vehicle_number']?.toString() ?? 'N/A',
+              driverName:
+                  'To be assigned', // Could be enhanced to get actual driver
+              bookingId: bookingResponse['id']?.toString() ?? 'N/A',
+              bookingDate: DateTime.parse(
+                bookingResponse['created_at']?.toString() ??
+                    DateTime.now().toIso8601String(),
+              ),
+              paymentMethod: _selectedPaymentMethod,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      // Fallback: show success message and go home
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Payment successful! Booking confirmed.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    }
   }
 
   Future<bool> _handleBackPress(BuildContext context) async {

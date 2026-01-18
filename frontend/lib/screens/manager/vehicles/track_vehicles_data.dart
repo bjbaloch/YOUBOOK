@@ -1,43 +1,23 @@
 part of 'track_vehicles_screen.dart';
 
 class TrackVehiclesData {
-  List<Vehicle> vehicles = [];
-  bool isLoading = false;
-  final ApiService _apiService = ApiService();
+  final ManagerDataService _dataService;
+
+  TrackVehiclesData(this._dataService);
+
+  List<dynamic> get vehicles => _dataService.vehicles;
+  bool get isLoading => _dataService.isLoadingVehicles;
 
   Future<void> loadVehicles() async {
-    isLoading = true;
-    try {
-      final vehiclesData = await _apiService.getManagerVehicles();
-      vehicles = vehiclesData.map((json) => Vehicle.fromJson(json)).toList();
-      // Sort by status (active first) then by registration number
-      vehicles.sort((a, b) {
-        if (a.status != b.status) {
-          return a.status.index.compareTo(b.status.index);
-        }
-        return a.registrationNumber.compareTo(b.registrationNumber);
-      });
-    } catch (e) {
-      vehicles = [];
-      rethrow;
-    } finally {
-      isLoading = false;
-    }
+    await _dataService.loadVehicles();
   }
 
-  List<Vehicle> getActiveVehicles() {
-    return vehicles.where((v) => v.status == VehicleStatus.active).toList();
+  // Note: These methods are not used since we now display services instead of vehicles
+  List<dynamic> getActiveServices() {
+    return vehicles.where((s) => s['status'] == 'active').toList();
   }
 
-  List<Vehicle> getVehiclesNeedingMaintenance() {
-    return vehicles.where((v) => v.needsMaintenance).toList();
-  }
-
-  List<Vehicle> getVehiclesInUse() {
-    return vehicles.where((v) => v.isInUse).toList();
-  }
-
-  List<Vehicle> getVehiclesByStatus(VehicleStatus status) {
-    return vehicles.where((v) => v.status == status).toList();
+  List<dynamic> getServicesByType(String type) {
+    return vehicles.where((s) => s['type'] == type).toList();
   }
 }

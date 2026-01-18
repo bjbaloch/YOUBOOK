@@ -11,21 +11,21 @@
  ==========================================
 
  Profiles table (extends auth.users)
--- CREATE TABLE IF NOT EXISTS public.profiles (
---     id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
---     full_name TEXT,
---     email TEXT UNIQUE NOT NULL,
---     avatar_url TEXT,
---     phone_number TEXT,
---     cnic TEXT UNIQUE,
---     role user_role DEFAULT 'passenger'::user_role NOT NULL,
---     company_name TEXT,  -- For managers: company name
---     credential_details TEXT,  -- For managers: JSON string of company details
---     manager_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,  -- Driver's manager
---     is_active BOOLEAN DEFAULT true NOT NULL,
---     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL,
---     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL
--- );
+ CREATE TABLE IF NOT EXISTS public.profiles (
+     id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+     full_name TEXT,
+     email TEXT UNIQUE NOT NULL,
+     avatar_url TEXT,
+     phone_number TEXT,
+     cnic TEXT UNIQUE,
+     role user_role DEFAULT 'passenger'::user_role NOT NULL,
+     company_name TEXT,  -- For managers: company name
+     credential_details TEXT,  -- For managers: JSON string of company details
+     manager_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,  -- Driver's manager
+     is_active BOOLEAN DEFAULT true NOT NULL,
+     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL,
+     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL
+ );
 
  Add indexes for performance
 -- CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(email);
@@ -61,51 +61,51 @@
  ==========================================
 
  Function to handle new user signup automatically
--- CREATE OR REPLACE FUNCTION public.handle_new_user()
--- RETURNS TRIGGER AS $$
--- DECLARE
---     user_role_val user_role := 'passenger'::user_role;
--- BEGIN
---     -- Determine role: check for admin flag first, then explicit role, default to passenger
---     IF new.raw_user_meta_data->>'is_admin' = 'true' THEN
---         user_role_val := 'admin'::user_role;
---     ELSIF new.raw_user_meta_data->>'role' IS NOT NULL THEN
---         user_role_val := (new.raw_user_meta_data->>'role')::user_role;
---     END IF;
+ CREATE OR REPLACE FUNCTION public.handle_new_user()
+ RETURNS TRIGGER AS $$
+ DECLARE
+     user_role_val user_role := 'passenger'::user_role;
+ BEGIN
+     -- Determine role: check for admin flag first, then explicit role, default to passenger
+     IF new.raw_user_meta_data->>'is_admin' = 'true' THEN
+         user_role_val := 'admin'::user_role;
+     ELSIF new.raw_user_meta_data->>'role' IS NOT NULL THEN
+         user_role_val := (new.raw_user_meta_data->>'role')::user_role;
+     END IF;
 
---     -- Insert into PROFILES
---     INSERT INTO public.profiles (
---         id,
---         email,
---         full_name,
---         phone_number,
---         cnic,
---         role,
---         avatar_url,
---         company_name,
---         credential_details
---     )
---     VALUES (
---         new.id,
---         new.email,
---         new.raw_user_meta_data->>'full_name',
---         new.raw_user_meta_data->>'phone_number',
---         COALESCE(new.raw_user_meta_data->>'cnic', 'PENDING-' || new.id::text),
---         user_role_val,
---         new.raw_user_meta_data->>'avatar_url',
---         new.raw_user_meta_data->>'company_name',
---         new.raw_user_meta_data->>'credential_details'
---     );
+     -- Insert into PROFILES
+     INSERT INTO public.profiles (
+         id,
+         email,
+         full_name,
+         phone_number,
+         cnic,
+         role,
+         avatar_url,
+         company_name,
+         credential_details
+     )
+     VALUES (
+         new.id,
+         new.email,
+         new.raw_user_meta_data->>'full_name',
+         new.raw_user_meta_data->>'phone_number',
+         COALESCE(new.raw_user_meta_data->>'cnic', 'PENDING-' || new.id::text),
+         user_role_val,
+         new.raw_user_meta_data->>'avatar_url',
+         new.raw_user_meta_data->>'company_name',
+         new.raw_user_meta_data->>'credential_details'
+     );
 
---     RETURN new;
--- END;
--- $$ LANGUAGE plpgsql SECURITY DEFINER;
+     RETURN new;
+ END;
+ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
  Bind the signup trigger
--- DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
--- CREATE TRIGGER on_auth_user_created
---     AFTER INSERT ON auth.users
---     FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+ CREATE TRIGGER on_auth_user_created
+     AFTER INSERT ON auth.users
+     FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
  ==========================================
  4. TRIGGER FOR MANAGER APPLICATION APPROVAL

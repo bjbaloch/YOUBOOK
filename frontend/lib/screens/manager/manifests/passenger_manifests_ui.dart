@@ -38,7 +38,15 @@ Widget _buildManifestsSummary(_PassengerManifestsScreenState state) {
     margin: const EdgeInsets.symmetric(horizontal: 16),
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: cs.surface,
+      //color: cs.surface,
+      gradient: LinearGradient(
+        colors: [
+          AppColors.lightSeaGreen.withOpacity(0.6),
+          AppColors.lightSeaGreen.withOpacity(0.04),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
       borderRadius: BorderRadius.circular(12),
       boxShadow: [
         BoxShadow(
@@ -115,11 +123,7 @@ Widget _buildEmptyManifestsState(_PassengerManifestsScreenState state) {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.list_alt,
-            size: 80,
-            color: cs.onSurface.withOpacity(0.3),
-          ),
+          Icon(Icons.list_alt, size: 80, color: cs.onSurface.withOpacity(0.3)),
           const SizedBox(height: 16),
           Text(
             'No Passenger Manifests',
@@ -155,7 +159,10 @@ Widget _buildSchedulesWithManifestsList(_PassengerManifestsScreenState state) {
   );
 }
 
-Widget _buildScheduleManifestCard(_PassengerManifestsScreenState state, Schedule schedule) {
+Widget _buildScheduleManifestCard(
+  _PassengerManifestsScreenState state,
+  Schedule schedule,
+) {
   final cs = Theme.of(state.context).colorScheme;
   final passengerCount = schedule.totalSeats - schedule.availableSeats;
 
@@ -232,7 +239,9 @@ Widget _buildScheduleManifestCard(_PassengerManifestsScreenState state, Schedule
                   child: _buildManifestDetail(
                     icon: Icons.person,
                     label: 'Driver',
-                    value: schedule.driverName.split(' ').first, // First name only
+                    value: schedule.driverName
+                        .split(' ')
+                        .first, // First name only
                   ),
                 ),
               ],
@@ -248,7 +257,9 @@ Widget _buildScheduleManifestCard(_PassengerManifestsScreenState state, Schedule
                   onPressed: () {
                     // TODO: View detailed manifest
                     ScaffoldMessenger.of(state.context).showSnackBar(
-                      const SnackBar(content: Text('View Detailed Manifest - Coming Soon!')),
+                      const SnackBar(
+                        content: Text('View Detailed Manifest - Coming Soon!'),
+                      ),
                     );
                   },
                   icon: const Icon(Icons.visibility, size: 16),
@@ -259,7 +270,9 @@ Widget _buildScheduleManifestCard(_PassengerManifestsScreenState state, Schedule
                   onPressed: () {
                     // TODO: Export manifest
                     ScaffoldMessenger.of(state.context).showSnackBar(
-                      const SnackBar(content: Text('Export Manifest - Coming Soon!')),
+                      const SnackBar(
+                        content: Text('Export Manifest - Coming Soon!'),
+                      ),
                     );
                   },
                   icon: const Icon(Icons.download, size: 16),

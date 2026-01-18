@@ -11,32 +11,37 @@ Widget _buildVehiclesUI(_TrackVehiclesScreenState state) {
     onRefresh: state._refreshVehicles,
     child: Column(
       children: [
-        // Vehicles Summary
-        _buildVehiclesSummary(state),
+        // Services Summary
+        _buildServicesSummary(state),
         const SizedBox(height: 16),
 
-        // Vehicles List
+        // Services List
         Expanded(
           child: state._data.vehicles.isEmpty
-              ? _buildEmptyVehiclesState(state)
-              : _buildVehiclesList(state),
+              ? _buildEmptyServicesState(state)
+              : _buildServicesList(state),
         ),
       ],
     ),
   );
 }
 
-Widget _buildVehiclesSummary(_TrackVehiclesScreenState state) {
+Widget _buildServicesSummary(_TrackVehiclesScreenState state) {
   final cs = Theme.of(state.context).colorScheme;
-  final activeVehicles = state._data.getActiveVehicles();
-  final inUseVehicles = state._data.getVehiclesInUse();
-  final maintenanceVehicles = state._data.getVehiclesNeedingMaintenance();
 
   return Container(
     margin: const EdgeInsets.symmetric(horizontal: 16),
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: cs.surface,
+      //color: cs.surface,
+      gradient: LinearGradient(
+        colors: [
+          AppColors.lightSeaGreen.withOpacity(0.6),
+          AppColors.lightSeaGreen.withOpacity(0.04),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
       borderRadius: BorderRadius.circular(12),
       boxShadow: [
         BoxShadow(
@@ -50,26 +55,28 @@ Widget _buildVehiclesSummary(_TrackVehiclesScreenState state) {
       children: [
         Expanded(
           child: _buildSummaryItem(
-            icon: Icons.directions_bus,
-            title: 'Total Vehicles',
+            icon: Icons.business,
+            title: 'Total Services',
             value: '${state._data.vehicles.length}',
             color: cs.primary,
           ),
         ),
         Expanded(
           child: _buildSummaryItem(
-            icon: Icons.check_circle,
-            title: 'Active',
-            value: '${activeVehicles.length}',
-            color: Colors.green,
+            icon: Icons.directions_bus,
+            title: 'Bus Services',
+            value:
+                '${state._data.vehicles.where((s) => s['type'] == 'bus').length}',
+            color: Colors.blue,
           ),
         ),
         Expanded(
           child: _buildSummaryItem(
-            icon: Icons.location_on,
-            title: 'In Use',
-            value: '${inUseVehicles.length}',
-            color: Colors.blue,
+            icon: Icons.airport_shuttle,
+            title: 'Van Services',
+            value:
+                '${state._data.vehicles.where((s) => s['type'] == 'van').length}',
+            color: Colors.green,
           ),
         ),
       ],
@@ -104,7 +111,7 @@ Widget _buildSummaryItem({
   );
 }
 
-Widget _buildEmptyVehiclesState(_TrackVehiclesScreenState state) {
+Widget _buildEmptyServicesState(_TrackVehiclesScreenState state) {
   final cs = Theme.of(state.context).colorScheme;
 
   return Center(
@@ -113,14 +120,10 @@ Widget _buildEmptyVehiclesState(_TrackVehiclesScreenState state) {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.directions_bus,
-            size: 80,
-            color: cs.onSurface.withOpacity(0.3),
-          ),
+          Icon(Icons.business, size: 80, color: cs.onSurface.withOpacity(0.3)),
           const SizedBox(height: 16),
           Text(
-            'No Vehicles Yet',
+            'No Services Yet',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -129,7 +132,7 @@ Widget _buildEmptyVehiclesState(_TrackVehiclesScreenState state) {
           ),
           const SizedBox(height: 8),
           Text(
-            'Vehicles will appear here when added',
+            'Services will appear here when added',
             style: TextStyle(
               fontSize: 16,
               color: cs.onSurface.withOpacity(0.7),
@@ -142,231 +145,196 @@ Widget _buildEmptyVehiclesState(_TrackVehiclesScreenState state) {
   );
 }
 
-Widget _buildVehiclesList(_TrackVehiclesScreenState state) {
+Widget _buildServicesList(_TrackVehiclesScreenState state) {
   return ListView.builder(
     padding: const EdgeInsets.all(16),
     itemCount: state._data.vehicles.length,
     itemBuilder: (context, index) {
-      final vehicle = state._data.vehicles[index];
-      return _buildVehicleCard(state, vehicle);
+      final service = state._data.vehicles[index] as Map<String, dynamic>;
+      return _buildServiceCard(state, service);
     },
   );
 }
 
-Widget _buildVehicleCard(_TrackVehiclesScreenState state, Vehicle vehicle) {
+Widget _buildServiceCard(
+  _TrackVehiclesScreenState state,
+  Map<String, dynamic> service,
+) {
   final cs = Theme.of(state.context).colorScheme;
+  final serviceType = service['type'] as String? ?? 'unknown';
+  final serviceName = service['name'] as String? ?? 'Unnamed Service';
+  final capacity = service['capacity'] as int? ?? 0;
+  final basePrice = service['base_price'] as num? ?? 0;
+  final routeName = service['route_name'] as String? ?? 'No route';
+
+  // Choose icon based on service type
+  IconData serviceIcon;
+  Color serviceColor;
+  if (serviceType == 'bus') {
+    serviceIcon = Icons.directions_bus;
+    serviceColor = Colors.blue;
+  } else if (serviceType == 'van') {
+    serviceIcon = Icons.airport_shuttle;
+    serviceColor = Colors.green;
+  } else {
+    serviceIcon = Icons.business;
+    serviceColor = cs.primary;
+  }
 
   return Card(
     margin: const EdgeInsets.only(bottom: 12),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    child: InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: () {
-        // TODO: Navigate to vehicle details/map
-        ScaffoldMessenger.of(state.context).showSnackBar(
-          SnackBar(content: Text('Track Vehicle: ${vehicle.registrationNumber}')),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with registration and status
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: cs.primary.withOpacity(0.1),
-                  child: Icon(Icons.directions_bus, color: cs.primary),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        vehicle.registrationNumber,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: cs.onSurface,
-                        ),
-                      ),
-                      Text(
-                        vehicle.displayName,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: cs.onSurface.withOpacity(0.7),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                _buildVehicleStatusBadge(vehicle.status),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            // Vehicle details
-            Row(
-              children: [
-                Expanded(
-                  child: _buildVehicleDetail(
-                    icon: Icons.person,
-                    label: 'Driver',
-                    value: vehicle.driverName,
-                  ),
-                ),
-                Expanded(
-                  child: _buildVehicleDetail(
-                    icon: Icons.people,
-                    label: 'Capacity',
-                    value: '${vehicle.capacity} seats',
-                  ),
-                ),
-                Expanded(
-                  child: _buildVehicleDetail(
-                    icon: Icons.speed,
-                    label: 'Mileage',
-                    value: '${vehicle.totalKm} km',
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            // Location and maintenance status
-            if (vehicle.currentLocation != null) ...[
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                ),
-                child: Row(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with service type and name
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: serviceColor.withOpacity(0.1),
+                child: Icon(serviceIcon, color: serviceColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.location_on, color: Colors.blue, size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        vehicle.currentLocation!,
-                        style: const TextStyle(
-                          color: Colors.blue,
-                          fontWeight: FontWeight.w500,
-                        ),
+                    Text(
+                      serviceName,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                    Text(
+                      serviceType.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: cs.onSurface.withOpacity(0.7),
                       ),
                     ),
                   ],
                 ),
               ),
-            ] else if (vehicle.isInUse) ...[
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green),
                 ),
-                child: Row(
-                  children: [
-                    Icon(Icons.play_arrow, color: Colors.green, size: 16),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'On active route',
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ] else ...[
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.pause, color: Colors.grey, size: 16),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Parked/Available',
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+                child: const Text(
+                  'Active',
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],
+          ),
 
-            const SizedBox(height: 12),
+          const SizedBox(height: 12),
 
-            // Maintenance warning
-            if (vehicle.needsMaintenance) ...[
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+          // Service details
+          Row(
+            children: [
+              Expanded(
+                child: _buildVehicleDetail(
+                  icon: Icons.people,
+                  label: 'Capacity',
+                  value: '${capacity} seats',
                 ),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning, color: Colors.orange, size: 16),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Maintenance due soon',
-                      style: TextStyle(
-                        color: Colors.orange,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+              ),
+              Expanded(
+                child: _buildVehicleDetail(
+                  icon: Icons.attach_money,
+                  label: 'Base Fare',
+                  value: 'PKR ${basePrice.toStringAsFixed(0)}',
+                ),
+              ),
+              Expanded(
+                child: _buildVehicleDetail(
+                  icon: Icons.route,
+                  label: 'Route',
+                  value: routeName.length > 15
+                      ? '${routeName.substring(0, 15)}...'
+                      : routeName,
                 ),
               ),
             ],
+          ),
 
-            const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
-            // Actions
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+          // Route information
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.withOpacity(0.3)),
+            ),
+            child: Row(
               children: [
-                TextButton.icon(
-                  onPressed: () {
-                    // TODO: Track on map
-                    ScaffoldMessenger.of(state.context).showSnackBar(
-                      const SnackBar(content: Text('Track on Map - Coming Soon!')),
-                    );
-                  },
-                  icon: const Icon(Icons.map, size: 16),
-                  label: const Text('Track'),
-                ),
+                Icon(Icons.location_on, color: Colors.blue, size: 16),
                 const SizedBox(width: 8),
-                TextButton.icon(
-                  onPressed: () {
-                    // TODO: View vehicle details
-                    ScaffoldMessenger.of(state.context).showSnackBar(
-                      SnackBar(content: Text('Vehicle Details: ${vehicle.registrationNumber}')),
-                    );
-                  },
-                  icon: const Icon(Icons.info, size: 16),
-                  label: const Text('Details'),
+                Expanded(
+                  child: Text(
+                    routeName,
+                    style: const TextStyle(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Actions
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton.icon(
+                onPressed: () {
+                  // TODO: Track vehicles for this service
+                  ScaffoldMessenger.of(state.context).showSnackBar(
+                    SnackBar(
+                      content: Text('Track vehicles for ${serviceName}'),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.track_changes, size: 16),
+                label: const Text('Track Vehicle'),
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: () {
+                  // Navigate to service edit screen
+                  Navigator.push(
+                    state.context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          ServiceEditScreen(serviceId: service['id']),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.edit, size: 16),
+                label: const Text('Edit'),
+              ),
+            ],
+          ),
+        ],
       ),
     ),
   );
@@ -417,10 +385,6 @@ Widget _buildVehicleStatusBadge(VehicleStatus status) {
     case VehicleStatus.inactive:
       color = Colors.grey;
       text = 'Inactive';
-      break;
-    case VehicleStatus.outOfService:
-      color = Colors.red;
-      text = 'Out of Service';
       break;
   }
 

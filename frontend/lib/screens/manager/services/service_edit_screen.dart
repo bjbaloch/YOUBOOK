@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/manager_data_service.dart';
 import '../../../features/services_details/bus_details/bus_seatlayout/UI/bus_seatlayout_ui.dart';
 import '../../../features/services_details/van_details/van_seatlayout/UI/van_seatlayout_ui.dart';
 import 'service_model.dart';
@@ -41,6 +42,9 @@ class _ServiceEditScreenState extends State<ServiceEditScreen> {
   late TextEditingController _arrivalTimeController;
   late TextEditingController _priceController;
   late TextEditingController _applicationController;
+
+  // Service type selection
+  String _selectedServiceType = 'bus'; // Default to bus
 
   @override
   void initState() {
@@ -112,6 +116,9 @@ class _ServiceEditScreenState extends State<ServiceEditScreen> {
         _priceController.text = _service!.basePrice.toString();
         _applicationController.text =
             _service!.applicationCharges?.toString() ?? '0.0';
+
+        // Set service type from loaded service data
+        _selectedServiceType = serviceData['type'] as String? ?? 'bus';
       });
     } catch (e) {
       if (mounted) {
@@ -170,7 +177,7 @@ class _ServiceEditScreenState extends State<ServiceEditScreen> {
       final apiService = ApiService();
       await apiService.updateService(_service!.id, {
         'name': _service!.name, // Required field - cannot be null
-        'type': 'transport', // Required field - correct database enum value
+        'type': _selectedServiceType, // Use selected service type (bus or van)
         'status': newStatus.name,
       });
 
@@ -203,10 +210,10 @@ class _ServiceEditScreenState extends State<ServiceEditScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final apiService = ApiService();
+      final dataService = ManagerDataService();
       final updateData = {
         'name': _nameController.text.trim(),
-        'type': 'transport', // All services in this app are transport services
+        'type': _selectedServiceType, // Use selected service type (bus or van)
         'vehicle_number': _vehicleNumberController.text.trim(),
         'vehicle_color': _vehicleColorController.text.trim(),
         'proprietor': _proprietorController.text.trim(),
@@ -226,7 +233,7 @@ class _ServiceEditScreenState extends State<ServiceEditScreen> {
         'status': _selectedStatus.name,
       };
 
-      await apiService.updateService(_service!.id, updateData);
+      await dataService.updateService(_service!.id, updateData);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -293,7 +300,8 @@ class _ServiceEditScreenState extends State<ServiceEditScreen> {
         },
       };
 
-      await apiService.createVehicle(vehicleData);
+      final dataService = ManagerDataService();
+      await dataService.createVehicle(vehicleData);
       // Vehicle created successfully, now schedule creation can find it
     } catch (e) {
       // If vehicle creation fails, log but don't block service loading
@@ -349,18 +357,6 @@ class _ServiceEditScreenState extends State<ServiceEditScreen> {
         setState(() => _isLoading = false);
       }
     }
-  }
-
-  Future<void> _scheduleTrip() async {
-    await showDialog(
-      context: context,
-      builder: (context) => ScheduleTripDialog(
-        serviceId: _service!.id,
-        fromLocation: _fromController.text,
-        toLocation: _toController.text,
-        capacity: _service!.capacity,
-      ),
-    );
   }
 
   Future<void> _pickDateTime(TextEditingController controller) async {
@@ -715,6 +711,12 @@ class _ServiceEditScreenState extends State<ServiceEditScreen> {
                       if (_service != null)
                         _buildServiceCredentialsCard(_service!),
                       const SizedBox(height: 16),
+                      _ServiceTypeSection(
+                        selectedType: _selectedServiceType,
+                        onTypeChanged: (type) =>
+                            setState(() => _selectedServiceType = type),
+                      ),
+                      const SizedBox(height: 16),
                       _VehicleInformationSection(
                         nameController: _nameController,
                         numberController: _vehicleNumberController,
@@ -745,38 +747,23 @@ class _ServiceEditScreenState extends State<ServiceEditScreen> {
                         service: _service!,
                       ),
                       const SizedBox(height: 24),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _isLoading ? null : _scheduleTrip,
-                              icon: const Icon(Icons.calendar_today),
-                              label: const Text('Schedule Trip'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                              ),
+                      Center(
+                        child: ElevatedButton.icon(
+                          onPressed: _isLoading ? null : _updateService,
+                          icon: const Icon(Icons.save),
+                          label: const Text('Update Service'),
+                          style: ElevatedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            backgroundColor: AppColors.accentOrange,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 16,
                             ),
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _isLoading ? null : _updateService,
-                              icon: const Icon(Icons.save),
-                              label: const Text('Update Service'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.accentOrange,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ],
                   ),
@@ -941,6 +928,113 @@ Widget _sectionContainer({required List<Widget> children}) {
 }
 
 /// ---------- Sections ----------
+
+class _ServiceTypeSection extends StatelessWidget {
+  final String selectedType;
+  final Function(String) onTypeChanged;
+
+  const _ServiceTypeSection({
+    required this.selectedType,
+    required this.onTypeChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return _sectionContainer(
+      children: [
+        const SectionHeader(
+          titleEn: 'Service Type',
+          titleUr: 'سروس کی قسم',
+          isRequired: true,
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: cs.surface,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: cs.outline.withOpacity(0.3)),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildTypeOption(
+                      context,
+                      type: 'bus',
+                      label: 'Bus Service',
+                      icon: Icons.directions_bus,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildTypeOption(
+                      context,
+                      type: 'van',
+                      label: 'Van Service',
+                      icon: Icons.airport_shuttle,
+                      color: Colors.green,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTypeOption(
+    BuildContext context, {
+    required String type,
+    required String label,
+    required IconData icon,
+    required Color color,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    final isSelected = selectedType == type;
+
+    return InkWell(
+      onTap: () => onTypeChanged(type),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.1) : cs.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? color : cs.outline.withOpacity(0.3),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? color : cs.onSurface.withOpacity(0.6),
+              size: 32,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? color : cs.onSurface.withOpacity(0.8),
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _VehicleInformationSection extends StatelessWidget {
   final TextEditingController nameController;
@@ -1292,356 +1386,6 @@ class CnicInputFormatter extends TextInputFormatter {
     return TextEditingValue(
       text: formattedText,
       selection: TextSelection.collapsed(offset: formattedText.length),
-    );
-  }
-}
-
-// Schedule Trip Dialog
-class ScheduleTripDialog extends StatefulWidget {
-  final String serviceId;
-  final String fromLocation;
-  final String toLocation;
-  final int capacity;
-
-  const ScheduleTripDialog({
-    super.key,
-    required this.serviceId,
-    required this.fromLocation,
-    required this.toLocation,
-    required this.capacity,
-  });
-
-  @override
-  State<ScheduleTripDialog> createState() => _ScheduleTripDialogState();
-}
-
-class _ScheduleTripDialogState extends State<ScheduleTripDialog> {
-  final _formKey = GlobalKey<FormState>();
-  bool _isLoading = false;
-  String? _errorMessage;
-
-  // Controllers for schedule form
-  final _travelDateController = TextEditingController();
-  final _departureTimeController = TextEditingController();
-  final _arrivalTimeController = TextEditingController();
-  final _notesController = TextEditingController();
-
-  @override
-  void dispose() {
-    _travelDateController.dispose();
-    _departureTimeController.dispose();
-    _arrivalTimeController.dispose();
-    _notesController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _selectDate() async {
-    final pickedDate = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-
-    if (pickedDate != null) {
-      _travelDateController.text = pickedDate.toIso8601String().split('T')[0];
-    }
-  }
-
-  Future<void> _selectTime(
-    TextEditingController controller,
-    String title,
-  ) async {
-    final pickedTime = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
-
-    if (pickedTime != null) {
-      final now = DateTime.now();
-      final selectedDateTime = DateTime(
-        now.year,
-        now.month,
-        now.day,
-        pickedTime.hour,
-        pickedTime.minute,
-      );
-      controller.text = selectedDateTime.toIso8601String();
-    }
-  }
-
-  Future<void> _createSchedule() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null; // Clear any previous error
-    });
-
-    try {
-      final apiService = ApiService();
-
-      // Create or get route
-      final routeName = '${widget.fromLocation} → ${widget.toLocation}';
-      var routeId = 'route_${DateTime.now().millisecondsSinceEpoch}';
-
-      // Try to find existing route
-      final existingRoutes = await apiService.getRoutes();
-      final existingRoute = existingRoutes.firstWhere(
-        (route) => route['name'] == routeName,
-        orElse: () => <String, dynamic>{},
-      );
-
-      if (existingRoute.isNotEmpty) {
-        routeId = existingRoute['id'];
-      } else {
-        // Create new route
-        final routeData = {
-          'name': routeName,
-          'from': widget.fromLocation,
-          'to': widget.toLocation,
-          'distance': 0.0,
-          'duration': 60,
-        };
-        final newRoute = await apiService.createRoute(routeData);
-        routeId = newRoute['id'];
-      }
-
-      // Find or create vehicle for the service
-      var vehicleId = '';
-      final serviceVehicles = await apiService.getServiceVehicles(
-        widget.serviceId,
-      );
-
-      if (serviceVehicles.isNotEmpty) {
-        // Use the first available vehicle for this service
-        vehicleId = serviceVehicles.first['id'];
-      } else {
-        // No vehicles exist for this service - show helpful error message
-        throw Exception(
-          'No vehicles found for this service. Please create a vehicle first before scheduling trips.\n\n'
-          'Go to: Fleet Management → Add Vehicle',
-        );
-      }
-
-      final scheduleData = {
-        'service_id': widget.serviceId,
-        'route_id': routeId,
-        'vehicle_id': vehicleId, // Now includes the vehicle ID
-        'departure_time': _departureTimeController.text,
-        'arrival_time': _arrivalTimeController.text,
-        'travel_date': _travelDateController.text,
-        'total_seats': widget.capacity,
-        'status': 'scheduled',
-        'notes': _notesController.text.trim(),
-      };
-
-      await apiService.createSchedule(scheduleData);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Trip scheduled successfully')),
-        );
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Failed to schedule trip: $e';
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Fixed header (non-scrollable)
-            Container(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                children: [
-                  Icon(Icons.calendar_today, color: cs.primary),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Schedule New Trip',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: cs.onSurface,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Scrollable content
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Travel Date
-                      TextFormField(
-                        controller: _travelDateController,
-                        readOnly: true,
-                        decoration: InputDecoration(
-                          labelText: 'Travel Date',
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.calendar_today),
-                            onPressed: _selectDate,
-                          ),
-                        ),
-                        validator: (value) => value?.isEmpty ?? true
-                            ? 'Please select travel date'
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Departure Time
-                      TextFormField(
-                        controller: _departureTimeController,
-                        readOnly: true,
-                        decoration: InputDecoration(
-                          labelText: 'Departure Time',
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.access_time),
-                            onPressed: () => _selectTime(
-                              _departureTimeController,
-                              'Departure Time',
-                            ),
-                          ),
-                        ),
-                        validator: (value) => value?.isEmpty ?? true
-                            ? 'Please select departure time'
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Arrival Time
-                      TextFormField(
-                        controller: _arrivalTimeController,
-                        readOnly: true,
-                        decoration: InputDecoration(
-                          labelText: 'Arrival Time',
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.access_time),
-                            onPressed: () => _selectTime(
-                              _arrivalTimeController,
-                              'Arrival Time',
-                            ),
-                          ),
-                        ),
-                        validator: (value) => value?.isEmpty ?? true
-                            ? 'Please select arrival time'
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Notes
-                      TextFormField(
-                        controller: _notesController,
-                        maxLines: 3,
-                        decoration: const InputDecoration(
-                          labelText: 'Notes (Optional)',
-                          alignLabelWithHint: true,
-                        ),
-                      ),
-
-                      // Error message display
-                      if (_errorMessage != null) ...[
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.red.shade200),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.error_outline,
-                                color: Colors.red.shade700,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _errorMessage!,
-                                  style: TextStyle(
-                                    color: Colors.red.shade700,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // Fixed footer (non-scrollable)
-            Container(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _createSchedule,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accentOrange,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
-                              ),
-                            )
-                          : const Text('Schedule Trip'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

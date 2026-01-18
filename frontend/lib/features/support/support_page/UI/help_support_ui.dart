@@ -108,8 +108,7 @@ class HelpSupportPage extends StatelessWidget {
             ),
             leading: IconButton(
               icon: Icon(Icons.arrow_back_ios_new_rounded, color: cs.onPrimary),
-              onPressed: () =>
-                  Navigator.of(context).pushReplacement(logic.smoothRoute(const ManagerHomeUI(data: const ManagerHomeData()))),
+              onPressed: () => Navigator.of(context).pop(),
             ),
             centerTitle: true,
             title: Text(

@@ -6,6 +6,8 @@ class Schedule {
   final String routeId;
   final String vehicleId;
   final String driverId;
+  final String origin;
+  final String destination;
   final DateTime departureTime;
   final DateTime arrivalTime;
   final DateTime travelDate;
@@ -27,6 +29,8 @@ class Schedule {
     required this.routeId,
     required this.vehicleId,
     required this.driverId,
+    required this.origin,
+    required this.destination,
     required this.departureTime,
     required this.arrivalTime,
     required this.travelDate,
@@ -48,6 +52,8 @@ class Schedule {
       routeId: json['route_id']?.toString() ?? '',
       vehicleId: json['vehicle_id']?.toString() ?? '',
       driverId: json['assigned_driver_id']?.toString() ?? '',
+      origin: json['origin']?.toString() ?? 'Unknown',
+      destination: json['destination']?.toString() ?? 'Unknown',
       departureTime: DateTime.parse(
         json['departure_time']?.toString() ?? DateTime.now().toIso8601String(),
       ),
@@ -73,7 +79,7 @@ class Schedule {
       route: json['routes'],
       vehicle: json['vehicles'],
       driver: json['profiles'],
-      service: json['services'],
+      service: json['services'] ?? json['vehicles']?['services'],
     );
   }
 
@@ -101,6 +107,8 @@ class Schedule {
     String? routeId,
     String? vehicleId,
     String? driverId,
+    String? origin,
+    String? destination,
     DateTime? departureTime,
     DateTime? arrivalTime,
     DateTime? travelDate,
@@ -120,6 +128,8 @@ class Schedule {
       routeId: routeId ?? this.routeId,
       vehicleId: vehicleId ?? this.vehicleId,
       driverId: driverId ?? this.driverId,
+      origin: origin ?? this.origin,
+      destination: destination ?? this.destination,
       departureTime: departureTime ?? this.departureTime,
       arrivalTime: arrivalTime ?? this.arrivalTime,
       travelDate: travelDate ?? this.travelDate,
@@ -135,7 +145,7 @@ class Schedule {
     );
   }
 
-  String get routeName => route?['name'] ?? 'Unknown Route';
+  String get routeName => '$origin → $destination';
   String get vehicleNumber => vehicle?['registration_number'] ?? 'Unknown';
   String get driverName => driver?['full_name'] ?? 'Unassigned';
   String get serviceName => service?['name'] ?? 'Unknown Service';

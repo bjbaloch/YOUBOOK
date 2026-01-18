@@ -5,6 +5,8 @@ class ManagerDriversData {
   bool isLoading = false;
   final ApiService _apiService = ApiService();
 
+  ApiService get apiService => _apiService;
+
   Future<void> loadDrivers() async {
     isLoading = true;
     try {

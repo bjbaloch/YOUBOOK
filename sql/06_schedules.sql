@@ -10,8 +10,8 @@
 --  1. SCHEDULES TABLE
 --  ==========================================
 
--- -- Schedules table (trip schedules)
--- -- Drop existing table if it exists with wrong schema
+-- Schedules table (trip schedules)
+-- Drop existing table if it exists with wrong schema
 -- DROP TABLE IF EXISTS public.schedules CASCADE;
 
 -- -- Create schedules table with correct schema

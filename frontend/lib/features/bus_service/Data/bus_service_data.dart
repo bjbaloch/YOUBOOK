@@ -1,54 +1,89 @@
 import 'package:flutter/material.dart';
+import '../../../core/services/api_service.dart';
 
 enum TripType {
   oneWay,
   roundTrip,
 }
 
-class BusRoute {
-  final String fromCity;
-  final String toCity;
-  final String routeName;
+class RouteModel {
+  final String id;
+  final String name;
+  final String serviceType;
+  final Map<String, dynamic> startLocation;
+  final Map<String, dynamic> endLocation;
+  final double? distanceKm;
+  final int? estimatedDurationMinutes;
+  final bool isActive;
 
-  const BusRoute({
-    required this.fromCity,
-    required this.toCity,
-    required this.routeName,
+  const RouteModel({
+    required this.id,
+    required this.name,
+    required this.serviceType,
+    required this.startLocation,
+    required this.endLocation,
+    this.distanceKm,
+    this.estimatedDurationMinutes,
+    this.isActive = true,
   });
 
-  String get displayName => '$fromCity → $toCity';
+  factory RouteModel.fromJson(Map<String, dynamic> json) {
+    return RouteModel(
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
+      serviceType: json['service_type'] ?? 'bus',
+      startLocation: json['start_location'] ?? {},
+      endLocation: json['end_location'] ?? {},
+      distanceKm: json['distance_km']?.toDouble(),
+      estimatedDurationMinutes: json['estimated_duration_minutes'],
+      isActive: json['is_active'] ?? true,
+    );
+  }
+
+  String get fromCity => startLocation['city'] ?? startLocation['address'] ?? 'Unknown';
+  String get toCity => endLocation['city'] ?? endLocation['address'] ?? 'Unknown';
+  String get displayName => name.isNotEmpty ? name : '$fromCity → $toCity';
 }
 
 class BusServiceData {
   TripType selectedTripType = TripType.oneWay;
-  String? selectedFromCity;
-  String? selectedToCity;
+  RouteModel? selectedRoute;
+  String? selectedFromLocation;
+  String? selectedToLocation;
   DateTime? departureDate;
   DateTime? returnDate;
   int passengerCount = 1;
 
-  // Available cities - Coastal Balochistan route
-  static const List<String> availableCities = [
-    'Karachi',
-    'Turbat',
-    'Gwadar',
-  ];
+  // Dynamic routes fetched from database
+  static List<RouteModel> _availableRoutes = [];
+  static bool _routesLoaded = false;
 
-  // Get available routes based on selected cities
-  List<BusRoute> getAvailableRoutes() {
-    if (selectedFromCity == null || selectedToCity == null) return [];
+  // Get available routes from database (bus routes only)
+  static Future<List<RouteModel>> getAvailableRoutes() async {
+    if (!_routesLoaded) {
+      try {
+        final apiService = ApiService();
+        final routesData = await apiService.getRoutes(serviceType: 'bus');
+        _availableRoutes = routesData.map((json) => RouteModel.fromJson(json)).toList();
+        _routesLoaded = true;
+      } catch (e) {
+        debugPrint('Error loading bus routes: $e');
+        // No fallback routes - only show manager-added routes
+        _availableRoutes = [];
+        _routesLoaded = true;
+      }
+    }
+    return _availableRoutes;
+  }
 
-    return [
-      BusRoute(
-        fromCity: selectedFromCity!,
-        toCity: selectedToCity!,
-        routeName: '$selectedFromCity to $selectedToCity',
-      ),
-    ];
+  // Refresh routes (useful when new routes are added)
+  static void refreshRoutes() {
+    _routesLoaded = false;
+    _availableRoutes.clear();
   }
 
   bool get isValidForSearch {
-    if (selectedFromCity == null || selectedToCity == null || departureDate == null) {
+    if (selectedFromLocation == null || selectedToLocation == null || departureDate == null) {
       return false;
     }
     if (selectedTripType == TripType.roundTrip && returnDate == null) {
@@ -59,8 +94,9 @@ class BusServiceData {
 
   void reset() {
     selectedTripType = TripType.oneWay;
-    selectedFromCity = null;
-    selectedToCity = null;
+    selectedRoute = null;
+    selectedFromLocation = null;
+    selectedToLocation = null;
     departureDate = null;
     returnDate = null;
     passengerCount = 1;

@@ -4,6 +4,7 @@ import '../UI/van_service_ui.dart';
 import '../UI/available_vans_ui.dart';
 import '../../../screens/passenger/Home/UI/passenger_home_ui.dart';
 import '../../../screens/passenger/Home/Data/passenger_home_data.dart';
+import '../../../core/services/api_service.dart';
 
 class VanServiceLogic {
   static PageRouteBuilder smoothTransition(Widget page) {
@@ -11,12 +12,13 @@ class VanServiceLogic {
       transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, animation, secondaryAnimation) => page,
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        final slide = Tween<Offset>(
-          begin: const Offset(0.1, 0),
-          end: Offset.zero,
-        ).animate(
-          CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-        );
+        final slide =
+            Tween<Offset>(
+              begin: const Offset(0.1, 0),
+              end: Offset.zero,
+            ).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+            );
         final fade = CurvedAnimation(
           parent: animation,
           curve: Curves.easeOutCubic,
@@ -38,20 +40,67 @@ class VanServiceLogic {
   }
 
   static void navigateToVanService(BuildContext context) {
-    Navigator.push(
-      context,
-      smoothTransition(const VanServiceUI()),
-    );
+    Navigator.push(context, smoothTransition(const VanServiceUI()));
   }
 
-  static void navigateToAvailableVans(
+  static Future<List<Map<String, dynamic>>> fetchAvailableVehicles() async {
+    final apiService = ApiService();
+    return await apiService.getAvailableSchedules(serviceType: 'van');
+  }
+
+  static Future<void> navigateToAvailableVans(
     BuildContext context,
     VanServiceData searchData,
-  ) {
-    Navigator.push(
-      context,
-      smoothTransition(AvailableVansUI(searchData: searchData)),
+  ) async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
+
+    try {
+      final apiService = ApiService();
+
+      // Query schedules for van service type with location filters
+      final schedules = await apiService.getAvailableSchedules(
+        serviceType: 'van',
+        fromLocation: searchData.selectedFromLocation,
+        toLocation: searchData.selectedToLocation,
+        travelDate: searchData.departureDate,
+      );
+
+      // Hide loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      // Navigate to available vans screen with real data
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          smoothTransition(AvailableVansUI(
+            searchData: searchData,
+            schedules: schedules,
+          )),
+        );
+      }
+    } catch (e) {
+      // Hide loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      // Show error message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load available vans: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   static void navigateBackToHome(BuildContext context) {

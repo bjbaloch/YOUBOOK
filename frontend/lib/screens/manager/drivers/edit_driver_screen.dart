@@ -1,24 +1,38 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/models/driver.dart';
 
-class AddDriverScreen extends StatefulWidget {
-  const AddDriverScreen({super.key});
+class EditDriverScreen extends StatefulWidget {
+  const EditDriverScreen({super.key, required this.driver});
+
+  final Driver driver;
 
   @override
-  State<AddDriverScreen> createState() => _AddDriverScreenState();
+  State<EditDriverScreen> createState() => _EditDriverScreenState();
 }
 
-class _AddDriverScreenState extends State<AddDriverScreen> {
+class _EditDriverScreenState extends State<EditDriverScreen> {
   final _formKey = GlobalKey<FormState>();
   final _apiService = ApiService();
 
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _licenseController = TextEditingController();
+  late final TextEditingController _nameController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _licenseController;
 
   bool _isLoading = false;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.driver.fullName);
+    _emailController = TextEditingController(text: widget.driver.email);
+    _phoneController = TextEditingController(text: widget.driver.phoneNumber);
+    _licenseController = TextEditingController(
+      text: widget.driver.licenseNumber,
+    );
+  }
 
   @override
   void dispose() {
@@ -29,7 +43,18 @@ class _AddDriverScreenState extends State<AddDriverScreen> {
     super.dispose();
   }
 
-  Future<void> _createDriver() async {
+  String _getDriverStatusString(DriverStatus status) {
+    switch (status) {
+      case DriverStatus.idle:
+        return 'Idle';
+      case DriverStatus.assigned:
+        return 'Assigned';
+      case DriverStatus.onTrip:
+        return 'On Trip';
+    }
+  }
+
+  Future<void> _updateDriver() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -43,48 +68,16 @@ class _AddDriverScreenState extends State<AddDriverScreen> {
         'email': _emailController.text.trim(),
         'phone': _phoneController.text.trim(),
         'license_number': _licenseController.text.trim(),
+        'current_status': _getDriverStatusString(widget.driver.status),
       };
 
-      final result = await _apiService.createDriver(driverData);
+      await _apiService.updateDriver(widget.driver.id, driverData);
 
       if (mounted) {
-        // Show success dialog with temporary password
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            title: const Text('Driver Account Created'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Driver account has been created successfully!'),
-                const SizedBox(height: 16),
-                const Text(
-                  'Login Credentials:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text('Email: ${result['email']}'),
-                Text('Password: ${result['temp_password']}'),
-                const SizedBox(height: 16),
-                const Text(
-                  'Please provide these credentials to the driver. They can change the password after first login.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop(); // Close dialog
-                  Navigator.of(context).pop(true); // Return to driver list
-                },
-                child: const Text('OK'),
-              ),
-            ],
-          ),
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Driver updated successfully!')),
         );
+        Navigator.of(context).pop(true); // Return true to refresh the list
       }
     } catch (e) {
       setState(() {
@@ -109,10 +102,22 @@ class _AddDriverScreenState extends State<AddDriverScreen> {
           icon: Icon(Icons.arrow_back, color: cs.onPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Add New Driver'),
+        title: const Text('Edit Driver'),
         backgroundColor: cs.primary,
         foregroundColor: cs.onPrimary,
         elevation: 0,
+        actions: [
+          TextButton(
+            onPressed: _isLoading ? null : _updateDriver,
+            child: Text(
+              'Save',
+              style: TextStyle(
+                color: cs.onPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -132,14 +137,18 @@ class _AddDriverScreenState extends State<AddDriverScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.person_add, color: cs.primary, size: 28),
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor: cs.primary.withOpacity(0.1),
+                        child: Icon(Icons.person, color: cs.primary),
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Add Driver Record',
+                              'Edit Driver Information',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -148,7 +157,7 @@ class _AddDriverScreenState extends State<AddDriverScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'This will add the driver to your company records',
+                              'Update driver details and information',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: cs.onSurface.withOpacity(0.7),
@@ -267,12 +276,12 @@ class _AddDriverScreenState extends State<AddDriverScreen> {
 
                 const SizedBox(height: 32),
 
-                // Create Button
+                // Save Button
                 SizedBox(
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _createDriver,
+                    onPressed: _isLoading ? null : _updateDriver,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: cs.primary,
                       foregroundColor: cs.onPrimary,
@@ -292,7 +301,7 @@ class _AddDriverScreenState extends State<AddDriverScreen> {
                             ),
                           )
                         : const Text(
-                            'Add Driver',
+                            'Update Driver',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -300,10 +309,6 @@ class _AddDriverScreenState extends State<AddDriverScreen> {
                           ),
                   ),
                 ),
-
-                const SizedBox(height: 16),
-
-
               ],
             ),
           ),

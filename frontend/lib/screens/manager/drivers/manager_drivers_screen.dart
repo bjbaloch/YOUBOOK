@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:youbook/core/theme/app_colors.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/models/driver.dart';
 import 'add_driver_screen.dart';
+import 'edit_driver_screen.dart';
+import 'assign_vehicle_dialog.dart';
 part 'manager_drivers_data.dart';
 part 'manager_drivers_ui.dart';
 
@@ -46,7 +49,7 @@ class _ManagerDriversScreenState extends State<ManagerDriversScreen>
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Manager Drivers'),
+        title: const Text('Manage Drivers'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
         elevation: 0,

@@ -14,7 +14,9 @@
 -- CREATE TABLE IF NOT EXISTS public.bookings (
 --     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
 --     passenger_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
---     schedule_id UUID REFERENCES public.schedules(id) ON DELETE CASCADE NOT NULL,
+--     schedule_id UUID REFERENCES public.schedules(id) ON DELETE CASCADE,  -- Made nullable for service bookings
+--     service_id UUID REFERENCES public.services(id) ON DELETE CASCADE,  -- For service-level bookings
+--     booking_type TEXT DEFAULT 'schedule' CHECK (booking_type IN ('schedule', 'service')),  -- 'schedule' or 'service'
 --     booking_date TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL,
 --     travel_date DATE NOT NULL,
 --     total_price DECIMAL(8,2) NOT NULL,
@@ -25,9 +27,22 @@
 --     payment_reference TEXT,
 --     pickup_location JSONB,  -- Optional pickup point
 --     special_requests TEXT,
+--     selected_seats JSONB,  -- Store selected seats for service bookings
 --     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL,
 --     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, now()) NOT NULL
 -- );
+
+-- ==========================================
+-- MIGRATION: Add columns for service bookings
+-- ==========================================
+
+-- ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS service_id UUID REFERENCES public.services(id) ON DELETE CASCADE;
+-- ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS booking_type TEXT DEFAULT 'schedule' CHECK (booking_type IN ('schedule', 'service'));
+-- ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS selected_seats JSONB;
+-- ALTER TABLE public.bookings ALTER COLUMN schedule_id DROP NOT NULL;  -- Make schedule_id nullable for service bookings
+
+-- CREATE INDEX IF NOT EXISTS idx_bookings_service_id ON public.bookings(service_id);
+-- CREATE INDEX IF NOT EXISTS idx_bookings_booking_type ON public.bookings(booking_type);
 
  Add indexes for performance
 -- CREATE INDEX IF NOT EXISTS idx_bookings_passenger_id ON public.bookings(passenger_id);

@@ -113,7 +113,8 @@ class _ManagerHomeUIState extends State<_ManagerHomeContent>
         }
       } else {
         // Fall back to local storage data
-        final accountData = await ProfileStorageService.getCombinedProfileData();
+        final accountData =
+            await ProfileStorageService.getCombinedProfileData();
         if (mounted) {
           setState(() {
             _displayName = accountData.displayName;
@@ -404,7 +405,7 @@ class _ManagerHomeUIState extends State<_ManagerHomeContent>
                       children: [
                         Expanded(
                           child: _categoryTile(
-                            title: "Manager Drivers",
+                            title: "Manage Drivers",
                             onTap: () {
                               Navigator.push(
                                 context,

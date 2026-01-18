@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart' as printing;
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 import '../../../core/theme/app_colors.dart';
 import '../Data/seat_selection_data.dart';
 import '../../../core/models/booking.dart';
@@ -37,7 +43,8 @@ class BookingReceiptUI extends StatefulWidget {
   State<BookingReceiptUI> createState() => _BookingReceiptUIState();
 }
 
-class _BookingReceiptUIState extends State<BookingReceiptUI> with TickerProviderStateMixin {
+class _BookingReceiptUIState extends State<BookingReceiptUI>
+    with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -50,21 +57,17 @@ class _BookingReceiptUIState extends State<BookingReceiptUI> with TickerProvider
       vsync: this,
     );
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     _animationController.forward();
   }
@@ -105,7 +108,8 @@ class _BookingReceiptUIState extends State<BookingReceiptUI> with TickerProvider
             actions: [
               IconButton(
                 icon: Icon(Icons.home, color: cs.onPrimary),
-                onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                onPressed: () =>
+                    Navigator.of(context).popUntil((route) => route.isFirst),
               ),
             ],
           ),
@@ -171,10 +175,7 @@ class _BookingReceiptUIState extends State<BookingReceiptUI> with TickerProvider
           const SizedBox(height: 8),
           Text(
             'Your seats have been successfully booked',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.green.shade700,
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.green.shade700),
             textAlign: TextAlign.center,
           ),
         ],
@@ -185,9 +186,7 @@ class _BookingReceiptUIState extends State<BookingReceiptUI> with TickerProvider
   Widget _bookingCard(ColorScheme cs) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -209,7 +208,10 @@ class _BookingReceiptUIState extends State<BookingReceiptUI> with TickerProvider
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.green.shade100,
                     borderRadius: BorderRadius.circular(12),
@@ -233,7 +235,12 @@ class _BookingReceiptUIState extends State<BookingReceiptUI> with TickerProvider
               icon: Icons.route,
               children: [
                 _infoRow('Route', widget.routeName),
-                _infoRow('Vehicle Type', widget.seatData.vehicleType == VehicleType.bus ? 'Bus' : 'Van'),
+                _infoRow(
+                  'Vehicle Type',
+                  widget.seatData.vehicleType == VehicleType.bus
+                      ? 'Bus'
+                      : 'Van',
+                ),
                 _infoRow('Vehicle Number', widget.vehicleNumber),
                 _infoRow('Driver', widget.driverName),
               ],
@@ -249,7 +256,10 @@ class _BookingReceiptUIState extends State<BookingReceiptUI> with TickerProvider
                 _infoRow('Travel Date', _formatDate(widget.travelDate)),
                 _infoRow('Departure Time', widget.departureTime),
                 _infoRow('Arrival Time', widget.arrivalTime),
-                _infoRow('Selected Seats', widget.seatData.selectedSeatNumbers.join(', ')),
+                _infoRow(
+                  'Selected Seats',
+                  widget.seatData.selectedSeatNumbers.join(', '),
+                ),
               ],
               cs: cs,
             ),
@@ -262,7 +272,10 @@ class _BookingReceiptUIState extends State<BookingReceiptUI> with TickerProvider
               children: [
                 _infoRow('Payment Method', widget.paymentMethod),
                 _infoRow('Booking Date', _formatDateTime(widget.bookingDate)),
-                _infoRow('Total Amount', 'Rs. ${widget.totalAmount.toStringAsFixed(0)}'),
+                _infoRow(
+                  'Total Amount',
+                  'Rs. ${widget.totalAmount.toStringAsFixed(0)}',
+                ),
                 _infoRow('Status', 'Confirmed'),
               ],
               cs: cs,
@@ -322,10 +335,7 @@ class _BookingReceiptUIState extends State<BookingReceiptUI> with TickerProvider
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -336,9 +346,7 @@ class _BookingReceiptUIState extends State<BookingReceiptUI> with TickerProvider
   Widget _qrCodeSection(ColorScheme cs) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -431,7 +439,8 @@ class _BookingReceiptUIState extends State<BookingReceiptUI> with TickerProvider
         SizedBox(
           width: double.infinity,
           child: TextButton.icon(
-            onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+            onPressed: () =>
+                Navigator.of(context).popUntil((route) => route.isFirst),
             icon: const Icon(Icons.home),
             label: const Text('Back to Home'),
             style: TextButton.styleFrom(
@@ -443,24 +452,190 @@ class _BookingReceiptUIState extends State<BookingReceiptUI> with TickerProvider
     );
   }
 
-  void _shareBooking() {
-    // TODO: Implement share functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Share functionality coming soon!'),
-        backgroundColor: Colors.blue,
-      ),
-    );
+  void _shareBooking() async {
+    try {
+      final shareText =
+          '''
+YouBook Bus Ticket
+
+Booking ID: ${widget.bookingId}
+Route: ${widget.routeName}
+Date: ${_formatDate(widget.travelDate)}
+Time: ${widget.departureTime}
+Seats: ${widget.seatData.selectedSeatNumbers.join(', ')}
+Vehicle: ${widget.vehicleNumber}
+Amount: Rs. ${widget.totalAmount.toStringAsFixed(0)}
+
+Show QR code at boarding point.
+''';
+
+      await Share.share(
+        shareText,
+        subject: 'YouBook Bus Ticket - ${widget.bookingId}',
+      );
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Booking details shared successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to share: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
-  void _downloadReceipt() {
-    // TODO: Implement download functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Download functionality coming soon!'),
-        backgroundColor: Colors.blue,
-      ),
-    );
+  Future<void> _downloadReceipt() async {
+    try {
+      // Generate PDF
+      final pdf = pw.Document();
+
+      // Add page with ticket details
+      pdf.addPage(
+        pw.Page(
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Header
+                pw.Center(
+                  child: pw.Text(
+                    'YouBook Bus Ticket',
+                    style: pw.TextStyle(
+                      fontSize: 24,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ),
+                pw.SizedBox(height: 20),
+
+                // Booking ID
+                pw.Text(
+                  'Booking ID: ${widget.bookingId}',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 10),
+
+                // Route Information
+                pw.Text(
+                  'Route: ${widget.routeName}',
+                  style: const pw.TextStyle(fontSize: 14),
+                ),
+                pw.Text(
+                  'Vehicle Type: ${widget.seatData.vehicleType == VehicleType.bus ? 'Bus' : 'Van'}',
+                  style: const pw.TextStyle(fontSize: 14),
+                ),
+                pw.Text(
+                  'Vehicle Number: ${widget.vehicleNumber}',
+                  style: const pw.TextStyle(fontSize: 14),
+                ),
+                pw.Text(
+                  'Driver: ${widget.driverName}',
+                  style: const pw.TextStyle(fontSize: 14),
+                ),
+                pw.SizedBox(height: 10),
+
+                // Travel Details
+                pw.Text(
+                  'Travel Date: ${_formatDate(widget.travelDate)}',
+                  style: const pw.TextStyle(fontSize: 14),
+                ),
+                pw.Text(
+                  'Departure Time: ${widget.departureTime}',
+                  style: const pw.TextStyle(fontSize: 14),
+                ),
+                pw.Text(
+                  'Arrival Time: ${widget.arrivalTime}',
+                  style: const pw.TextStyle(fontSize: 14),
+                ),
+                pw.Text(
+                  'Selected Seats: ${widget.seatData.selectedSeatNumbers.join(', ')}',
+                  style: const pw.TextStyle(fontSize: 14),
+                ),
+                pw.SizedBox(height: 10),
+
+                // Payment Details
+                pw.Text(
+                  'Payment Method: ${widget.paymentMethod}',
+                  style: const pw.TextStyle(fontSize: 14),
+                ),
+                pw.Text(
+                  'Booking Date: ${_formatDateTime(widget.bookingDate)}',
+                  style: const pw.TextStyle(fontSize: 14),
+                ),
+                pw.Text(
+                  'Total Amount: Rs. ${widget.totalAmount.toStringAsFixed(0)}',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 20),
+
+                // QR Code placeholder
+                pw.Center(
+                  child: pw.Container(
+                    width: 100,
+                    height: 100,
+                    decoration: pw.BoxDecoration(border: pw.Border.all()),
+                    child: pw.Center(
+                      child: pw.Text(
+                        'QR Code\n${widget.bookingId}',
+                        textAlign: pw.TextAlign.center,
+                        style: const pw.TextStyle(fontSize: 10),
+                      ),
+                    ),
+                  ),
+                ),
+                pw.SizedBox(height: 10),
+                pw.Center(
+                  child: pw.Text(
+                    'Show this QR code at the boarding point',
+                    style: const pw.TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+
+      // Show PDF preview/print dialog
+      if (context.mounted) {
+        await printing.Printing.layoutPdf(
+          onLayout: (format) async => pdf.save(),
+          name: 'YouBook_Ticket_${widget.bookingId}',
+        );
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ticket downloaded successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to download ticket: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<bool> _handleBackPress(BuildContext context) async {

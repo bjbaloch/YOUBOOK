@@ -1,32 +1,23 @@
 part of 'manage_schedules_screen.dart';
 
 class ManageSchedulesData {
-  List<Schedule> schedules = [];
-  bool isLoading = false;
-  final ApiService _apiService = ApiService();
+  final ManagerDataService _dataService;
+
+  ManageSchedulesData(this._dataService);
+
+  List<Schedule> get schedules => _dataService.schedules;
+  bool get isLoading => _dataService.isLoadingSchedules;
 
   Future<void> loadSchedules() async {
-    isLoading = true;
-    try {
-      final schedulesData = await _apiService.getManagerSchedules();
-      schedules = schedulesData.map((json) => Schedule.fromJson(json)).toList();
-      // Sort by departure time (upcoming first)
-      schedules.sort((a, b) => a.departureTime.compareTo(b.departureTime));
-    } catch (e) {
-      // On error, keep empty list
-      schedules = [];
-      rethrow;
-    } finally {
-      isLoading = false;
-    }
+    await _dataService.loadSchedules();
   }
 
   List<Schedule> getUpcomingSchedules() {
-    return schedules.where((s) => s.isUpcoming).toList();
+    return _dataService.getUpcomingSchedules();
   }
 
   List<Schedule> getActiveSchedules() {
-    return schedules.where((s) => s.isActive).toList();
+    return _dataService.getActiveSchedules();
   }
 
   List<Schedule> getSchedulesByDate(DateTime date) {

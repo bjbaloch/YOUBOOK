@@ -14,6 +14,7 @@
 -- CREATE TABLE IF NOT EXISTS public.routes (
 --     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
 --     name TEXT NOT NULL,
+--     service_type TEXT DEFAULT 'bus' NOT NULL CHECK (service_type IN ('bus', 'van')),
 --     start_location JSONB NOT NULL,  -- {latitude, longitude, address, city, province}
 --     end_location JSONB NOT NULL,    -- {latitude, longitude, address, city, province}
 --     distance_km DECIMAL(8,2),
@@ -29,6 +30,7 @@
  Add indexes for performance
 -- CREATE INDEX IF NOT EXISTS idx_routes_start_location ON public.routes USING GIN (start_location);
 -- CREATE INDEX IF NOT EXISTS idx_routes_end_location ON public.routes USING GIN (end_location);
+-- CREATE INDEX IF NOT EXISTS idx_routes_service_type ON public.routes(service_type);
 -- CREATE INDEX IF NOT EXISTS idx_routes_is_active ON public.routes(is_active);
 -- CREATE INDEX IF NOT EXISTS idx_routes_created_at ON public.routes(created_at);
 
