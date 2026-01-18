@@ -464,13 +464,16 @@ class _PaymentUIState extends State<PaymentUI> {
     // Create booking
     final bookingData = {
       'passenger_id': apiService.supabase.auth.currentUser!.id,
-      'schedule_id': widget.seatData.busId,
+      'schedule_id': widget.seatData.busId, // Can be null for service bookings
       'total_price': widget.totalAmount,
       'travel_date': widget.travelDate.toIso8601String().split('T')[0],
       'status': 'confirmed',
       'is_paid': true,
       'payment_method': _selectedPaymentMethod,
       'payment_reference': 'TXN_${DateTime.now().millisecondsSinceEpoch}',
+      // For service bookings, add service_id
+      'service_id': widget.seatData.serviceId,
+      'booking_type': widget.seatData.busId != null ? 'schedule' : 'service',
     };
 
     final bookingResponse = await apiService.supabase
@@ -485,7 +488,7 @@ class _PaymentUIState extends State<PaymentUI> {
     final seatDataList = widget.seatData.selectedSeatNumbers.map((seatNumber) {
       return {
         'booking_id': bookingId,
-        'schedule_id': widget.seatData.busId,
+        'schedule_id': widget.seatData.busId ?? bookingData['schedule_id'], // Use booking's schedule_id as fallback
         'seat_number': seatNumber.toString(),
       };
     }).toList();
@@ -498,12 +501,18 @@ class _PaymentUIState extends State<PaymentUI> {
 
   Future<void> _unlockSeats() async {
     final apiService = ApiService();
+    final scheduleId = widget.seatData.busId; // This should not be null after our fix
+
+    if (scheduleId == null) {
+      debugPrint('Warning: scheduleId is null in _unlockSeats');
+      return;
+    }
 
     // Get vehicle ID
     final scheduleResponse = await apiService.supabase
         .from('schedules')
         .select('vehicle_id')
-        .eq('id', widget.seatData.busId)
+        .eq('id', scheduleId)
         .single();
 
     final vehicleId = scheduleResponse['vehicle_id'];
